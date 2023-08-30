@@ -3,7 +3,7 @@
 
 
 
-0.3 :: pandemic <--- [flu(X), cold].
+0.01 :: pandemic <--- [flu(X), cold].
 0.6 :: epidemic <--- [flu(X)].
 
 0.7 :: cold <--- [].

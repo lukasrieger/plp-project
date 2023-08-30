@@ -2,7 +2,7 @@
 :- op(255, xfx, <-).
 
 
-sample(Par) :- random(Prob), Prob < Par.
+
 
 produces(Facts, Head) :-
     Head <--- sample(X),

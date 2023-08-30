@@ -9,24 +9,44 @@
 :-include(forwardchaining).
 
 
-
 transform_input(Transformed) :- 
     findall(Weight :: Head <--- Body ,Weight ::  Head <--- Body, Clauses), 
-    maplist(rewrite, Clauses, Result),
-    Transformed = Result.
+    maplist(rewrite, Clauses, Transformed).
 
 
-is_clause(Weight :: Head).
-is_clause(Head <--- Body).
 
+collect(Body, R) :- term_variables(Body, R).
+empty([]).
+
+list_to_conj([H], H) :- !.
+list_to_conj([H | T], ','(H, Conj)) :-
+    list_to_conj(T, Conj).
 
 rewrite(Weight :: Head <--- [H|T], WithSample) :- 
     Body = [H|T],
-    findall(NBody, collect(Body, R), VarS),
-    append(NBody, sample(Weight), NewBody),
-    WithSample = [Head <--- NewBody, VarS].
+    maplist(collect, Body, Vars),
+    exclude(empty, Vars, VarsN),
+    % append(Body, sample(Weight, VarsN, Head), NewBody),
+    list_to_conj(Body, Conj),
+    XZR = (Head :- (Conj, sample(Weight, VarsN, Head))),
+    WithSample = XZR,
+    assert(XZR)
+    .
 
-rewrite(Weight :: Head <--- [], Transformed) :- Transformed = (Head <--- sample(Weight)).
+
+rewrite(Weight :: Head <--- [], Transformed) :- 
+    Clause = (Head :- sample(Weight, [], Head)),
+    assert(Clause),
+    Transformed = Clause.
+
+
+
+sample(Weight, Vars, Head) :- 
+    recorded(samples, (Head, Vars), _), !.
+sample(Weight, Vars, Head) :-
+    sample_(Weight), recorda(samples, (Head,Vars)).
+
+sample_(Par) :- random(Prob), Prob < Par.
 
 % flu(David) : [] <--- [flu(David)]
 coll(Facts) :- findall(Fact, ground(Fact), Facts), print(Facts).
@@ -49,7 +69,14 @@ isFact(H) :- Head <--- [Body | sample(Weight)].
 isFact(H) :- Fact <--- sample(Weight).
 
 
-sample_program2(Query, N, R) :- abolish_all_tables, transform_input(R). %findall(Query,  (member(Query, NewW), forward([flu(David), flu(Robert)], NewW)), Result), R = Result.
+transform_program(R) :- transform_input(R). %findall(Query,  (member(Query, NewW), forward([flu(David), flu(Robert)], NewW)), Result), R = Result.
+
+
+take_sample(Goal) :-
+    abolish_all_tables,
+    retractall(samples),
+    transform_program(R),
+    call(Goal).
 
 % transform_input([(pandemic : 0.3) <--- (flu(X), cold), (epidemic : 0.6) <--- (flu(X), cold), (cold : 0.7), flu(Robert), flu(David)]).
 
@@ -68,18 +95,7 @@ sample_program(Query, N, R) :- transform_input(Transformed), collectFacts([(pand
 %     Result = [Head <--- [Body, sample(Weight)], VarS].#
 
 
-collect2([H|T], R) :-
-    ( ground(H) -> collect2(T, R) ; 
-     term_variables(H, Vars),
-     findall(Vars, H, Solutions),
-     append(R, Vars-Solutions, )
-    ).
 
-collect(Body, R) :-
-    \+ ground(Body), 
-    term_variables(Body, Vars),
-    findall(Vars, Body, Solutions),
-    R = (Vars - Solutions).
 
 
 
