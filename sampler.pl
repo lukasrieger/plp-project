@@ -1,4 +1,4 @@
-:- module(sampler, [transform_object_program/1, sample_goal/1]).
+:- module(sampler, [transform_object_program/2, sample_goal/1]).
 
 :- op(900, xfx, <---).
 :- op(950, xfy, ::).
@@ -8,15 +8,15 @@
 /* 
     Load the object program under the given [Program] source and transform its content for future sampling.
  */
-transform_object_program(Program) :-
+transform_object_program(Program, TransformedRules) :-
     consult(Program),
     findall(Weight :: Head <--- Body, sampler: (Weight :: Head <--- Body), Clauses),
-    maplist(rewrite_pl_body, Clauses).
+    maplist(rewrite_pl_body, Clauses, TransformedRules).
 
 /* 
     Given a single PLP clause, transform it into an equivalent standard prolog clause according to the transformation rules detailed in Riguzzi 2013, p. 7.
  */
-rewrite_pl_body(Weight :: Head <--- [Term | Rest]) :-
+rewrite_pl_body(Weight :: Head <--- [Term | Rest], TransformedRule) :-
     ListBody = [Term | Rest],
     maplist(collect_free_variables, ListBody, Variables_),
     exclude(is_empty, Variables_, Variables),
@@ -24,7 +24,7 @@ rewrite_pl_body(Weight :: Head <--- [Term | Rest]) :-
     TransformedRule = (Head :- (!, Conjunction, sample_head([Weight, 1 - Weight], 1, Variables, NH), NH = 0)),
     sampler:assert(TransformedRule).
 
-rewrite_pl_body(Weight :: Head <--- []) :-
+rewrite_pl_body(Weight :: Head <--- [], TransformedRule) :-
     TransformedRule = (Head :- !, sample_head([Weight, 1 - Weight], 1, [], NH), NH = 0),
     sampler:assert(TransformedRule).
 
@@ -82,8 +82,6 @@ clear_recorded_pl_heads :-
 erase_all_references([]).
 erase_all_references([Reference | Rest]) :-
     erase(Reference), erase_all_references(Rest).
-
-
 
 
 

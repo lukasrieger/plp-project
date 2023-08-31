@@ -12,12 +12,13 @@ montecarlo(Program, Query, Probability) :-
 montecarlo(Program, Query, Threshold, Probability) :-
 	montecarlo(Program, Query, Threshold, 500, Probability).
 montecarlo(Program, Query, Threshold, BatchSize, Probability) :-
-	transform(Program),
-	take_samples(Query, Threshold, BatchSize, Probability).
+	transform(Program, TransformedRules),
+	take_samples(Query, Threshold, BatchSize, Probability),
+	reset_state(Program, TransformedRules).
 
-transform(Program) :-
+transform(Program, TransformedRules) :-
 	% TODO: Cleanup?
-	transform_object_program(Program).
+	transform_object_program(Program, TransformedRules).
 
 take_samples(Query, Threshold, BatchSize, Probability) :-
 	take_samples(Query, Threshold, BatchSize, 0, 0, Probability).
@@ -52,3 +53,17 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining) :-
 	NewSuccesses is CurrSuccesses + IsValid,
 	NewRemaining is Remaining - 1,
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining).
+
+
+/* 
+	Cleanup environment state after running a sampling process to completion.
+ */
+reset_state(Program, Clauses) :- 
+	unload_file(Program), maplist(retract_clause, Clauses).
+
+retract_clause(Head :- _) :- retractall(Head).
+
+
+	
+	
+	
