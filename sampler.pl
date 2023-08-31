@@ -82,6 +82,3 @@ clear_recorded_pl_heads :-
 erase_all_references([]).
 erase_all_references([Reference | Rest]) :-
     erase(Reference), erase_all_references(Rest).
-
-
-

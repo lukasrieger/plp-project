@@ -62,8 +62,3 @@ reset_state(Program, Clauses) :-
 	unload_file(Program), maplist(retract_clause, Clauses).
 
 retract_clause(Head :- _) :- retractall(Head).
-
-
-	
-	
-	
