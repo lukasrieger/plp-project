@@ -2,7 +2,7 @@
 Probabilistic Logic Programming Final Project - Sampling
 
 
-** Running the sampler **
+**Running the sampler**
 
 1. Start a SWI-Prolog session at the command line via `swipl`
 2. Load the `montecarlo` file/module via `[montecarlo].`
