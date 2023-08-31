@@ -1,5 +1,5 @@
 # plp-project
-Probabilistic Logic Programming Final Project - Sampling
+Probabilistic Logic Programming Final Project - Sampling as descirbed in http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf
 
 
 **Running the sampler**
