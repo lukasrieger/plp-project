@@ -8,7 +8,7 @@ Sampling as described in http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf
 
 1. Start a SWI-Prolog session at the command line via `swipl`
 2. Load the `montecarlo` file/module via `[montecarlo].`
-3. Invoke `montecarlo('path_to_object_program', query, Probability).`, where the first parameter denotes the path to a PLP object program and the second denotes the query to be sampled. After successful sampling, Probability will contain the sampled probability of `query` being true under the given `object_program`.
+3. Invoke `montecarlo('path_to_object_program', Query, Probability).`, where the first parameter denotes the path to a PLP object program and the second denotes the query to be sampled. After successful sampling, `Probability` will contain the sampled probability of `Query` being true under the given `object_program`.
 
 ### Available entrypoints
 
