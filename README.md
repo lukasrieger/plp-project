@@ -1,5 +1,7 @@
-# plp-project
-Probabilistic Logic Programming Final Project - Sampling as descirbed in http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf
+# <p align="center"> PLP - Final Project </p> 
+## <p align="center"> MCINTYRE: A Monte Carlo System for Probabilistic Logic Programming </p>  
+
+Sampling as descirbed in http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf
 
 
 **Running the sampler**
