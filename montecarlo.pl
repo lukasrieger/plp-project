@@ -17,7 +17,6 @@ montecarlo(Program, Query, Threshold, BatchSize, Probability) :-
 	reset_state(Program, TransformedRules).
 
 transform(Program, TransformedRules) :-
-	% TODO: Cleanup?
 	transform_object_program(Program, TransformedRules).
 
 take_samples(Query, Threshold, BatchSize, Probability) :-
@@ -44,10 +43,8 @@ sample_batch(_Query, CurrSuccesses, Successes, 0) :-
 	!.
 sample_batch(Query, CurrSuccesses, Successes, Remaining) :-
 	(sample_goal(Query) ->
-		% write('Sample valid, remaining: '), writeln(Remaining),
 		IsValid = 1
 		;
-		% write('Sample NOT valid, remaining: '), writeln(Remaining),
 		IsValid = 0
 	),
 	NewSuccesses is CurrSuccesses + IsValid,
