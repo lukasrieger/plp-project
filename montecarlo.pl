@@ -18,11 +18,13 @@ take_samples(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, Probabilit
 	write(Successes), writeln(' samples succeeded.'),
 	NewSamples is CurrSamples + BatchSize,
 	NewSuccesses is CurrSuccesses + Successes,
-	CurrProbability is NewSuccesses / NewSamples,
-	Confidence is 2 * 1.95996 * sqrt(CurrProbability * (1 - CurrProbability) / NewSamples), % see Riguzzi 2013, p. 6
-	(Confidence < Threshold ->
+	NewProbability is NewSuccesses / NewSamples,
+	% See Riguzzi 2013, p. 6:
+	Confidence is 2 * 1.95996 * sqrt(NewProbability * (1 - NewProbability) / NewSamples),
+	% See p. 9:
+	(Confidence < Threshold, (NewSuccesses > 5, NewSamples - NewSuccesses > 5; NewSamples >= 50000) ->
 		write('In total '), write(NewSuccesses), write('/'), write(NewSamples), writeln(' succeeded.'),
-		Probability is CurrProbability
+		Probability is NewProbability
 	;
 		take_samples(Query, Threshold, BatchSize, NewSamples, NewSuccesses, Probability)
 	).
