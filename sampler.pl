@@ -2,12 +2,12 @@
 	load_program/2,
 	unload_program/2,
 	sample_goal/1,
-	op(900, xfx, <---),
-	op(950, xfy, ::)
+	op(1200, xfx, <---),
+	op(1000, xfy, ::)
 ]).
 
-:- dynamic((::)/2).
 :- dynamic((<---)/2).
+:- dynamic((::)/2).
 
 /*
 	Load the object program under the given [Program] source and transform its content for future sampling.
@@ -25,11 +25,11 @@ rewrite_pl_body(Weight :: Head <--- [Term | Rest], TransformedRule) :-
 	maplist(collect_free_variables, ListBody, Variables_),
 	exclude(is_empty, Variables_, Variables),
 	list_to_conjunction(ListBody, Conjunction),
-	TransformedRule = (Head :- (!, Conjunction, sample_head([Weight, 1 - Weight], 1, Variables, NH), NH = 0)),
+	TransformedRule = (Head :- (Conjunction, sample_head([Weight, 1 - Weight], 1, Variables, NH), NH = 0)),
 	sampler:assert(TransformedRule).
 
 rewrite_pl_body(Weight :: Head <--- [], TransformedRule) :-
-	TransformedRule = (Head :- !, sample_head([Weight, 1 - Weight], 1, [], NH), NH = 0),
+	TransformedRule = (Head :- (sample_head([Weight, 1 - Weight], 1, [], NH), NH = 0)),
 	sampler:assert(TransformedRule).
 
 is_empty([]).
