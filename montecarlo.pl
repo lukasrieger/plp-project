@@ -1,10 +1,5 @@
 :- module(montecarlo, [montecarlo/3, montecarlo/4, montecarlo/5]).
 
-:- op(900, xfx, <---).
-:- op(950, xfy, ::).
-:- dynamic((::)/ 2), dynamic((<---) / 2).
-:- discontiguous (<---)/2.
-
 :- use_module(sampler).
 
 montecarlo(Program, Query, Probability) :-
@@ -12,12 +7,9 @@ montecarlo(Program, Query, Probability) :-
 montecarlo(Program, Query, Threshold, Probability) :-
 	montecarlo(Program, Query, Threshold, 500, Probability).
 montecarlo(Program, Query, Threshold, BatchSize, Probability) :-
-	transform(Program, TransformedRules),
+	sampler:load_program(Program, TransformedRules),
 	take_samples(Query, Threshold, BatchSize, Probability),
-	reset_state(Program, TransformedRules).
-
-transform(Program, TransformedRules) :-
-	transform_object_program(Program, TransformedRules).
+	sampler:unload_program(Program, TransformedRules).
 
 take_samples(Query, Threshold, BatchSize, Probability) :-
 	take_samples(Query, Threshold, BatchSize, 0, 0, Probability).
@@ -42,7 +34,7 @@ sample_batch(_Query, CurrSuccesses, Successes, 0) :-
 	Successes = CurrSuccesses,
 	!.
 sample_batch(Query, CurrSuccesses, Successes, Remaining) :-
-	(sample_goal(Query) ->
+	(sampler:sample_goal(Query) ->
 		IsValid = 1
 		;
 		IsValid = 0
@@ -50,12 +42,3 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining) :-
 	NewSuccesses is CurrSuccesses + IsValid,
 	NewRemaining is Remaining - 1,
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining).
-
-
-/* 
-	Cleanup environment state after running a sampling process to completion.
- */
-reset_state(Program, Clauses) :- 
-	unload_file(Program), maplist(retract_clause, Clauses).
-
-retract_clause(Head :- _) :- retractall(Head).
