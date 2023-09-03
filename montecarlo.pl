@@ -2,14 +2,14 @@
 
 :- use_module(sampler).
 
-montecarlo(Program, Query, Probability) :-
-	montecarlo(Program, Query, 0.02, Probability).
-montecarlo(Program, Query, Threshold, Probability) :-
-	montecarlo(Program, Query, Threshold, 500, Probability).
-montecarlo(Program, Query, Threshold, BatchSize, Probability) :-
-	sampler:load_program(Program, TransformedRules),
+montecarlo(File, Query, Probability) :-
+	montecarlo(File, Query, 0.02, Probability).
+montecarlo(File, Query, Threshold, Probability) :-
+	montecarlo(File, Query, Threshold, 500, Probability).
+montecarlo(File, Query, Threshold, BatchSize, Probability) :-
+	sampler:load_program(File),
 	take_samples(Query, Threshold, BatchSize, Probability),
-	sampler:unload_program(Program, TransformedRules).
+	sampler:unload_program.
 
 take_samples(Query, Threshold, BatchSize, Probability) :-
 	take_samples(Query, Threshold, BatchSize, 0, 0, Probability).
