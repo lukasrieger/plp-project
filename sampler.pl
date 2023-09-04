@@ -2,12 +2,14 @@
 	load_program/1,
 	unload_program/0,
 	sample_goal/1,
+	sample_goal_gibbs/1,
 	op(1120, xfx, <---),
 	op(1080, xfy, ::)
 ]).
 
-:- dynamic((<---)/2).
+:- dynamic(transformed:(<---)/2).
 :- dynamic((::)/2).
+:- dynamic(transformed:samp/3).
 
 /*
 	Load the PLP under the given [File] source and transform it's content for future sampling.
@@ -82,7 +84,13 @@ assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionInde
 	flatten(ConjunctionsVariables, Variables),
 	list_to_conjunction(Body, BodyConjunction),
 	Transformed = (Head :- (BodyConjunction, sampler:sample_head(Weights, DisjunctionIndex, Variables, NH), NH = HeadIndex)),
-	transformed:assertz(Transformed).
+	generate_clause_samp(Weights, DisjunctionIndex, Variables, Generated),
+	transformed:assertz(Transformed),
+	transformed:assertz(Generated).
+
+
+generate_clause_samp(Weights, DisjunctionIndex, Variables, Samp) :-
+	Samp = (samp(DisjunctionIndex, Variables, Val) :- (sampler:sample_head(Weights, DisjunctionIndex, Variables, Val)) )  .
 
 /*
 	Transform a list of terms extracted from an object program's clause
@@ -131,6 +139,33 @@ sample_goal(Goal) :-
 	abolish_all_tables,
 	clear_recorded_pl_heads,
 	transformed:call(Goal).
+
+/*
+	TODO: Gibbs sampling requires sample_head to use assert instead of recorda/recorded.
+	Read: https://ceur-ws.org/Vol-2678/paper12.pdf or https://link.springer.com/chapter/10.1007/978-3-030-35166-3_2
+		  for further information regarding sampling (Gibbs/ MCMC-sampling).
+		  
+	TODO: Offer interface predicate to sample a goal given certain evidence (see link #1).
+*/
+sample_goal_gibbs(Query) :-
+	Block is 2,
+	remove_samples(Block, Removed),
+	copy_term(Query, Query1),
+	transformed:call(Query1),
+	ensure_sampled(Removed).
+
+remove_samples(Block, Samp) :- remove_samp(Block, Samp); Samp = [].
+
+remove_samp(0, []) :- !.
+remove_samp(Block, [(RequiredHead, Variables) | Samp]) :-
+	recorded(samples, (RequiredHead, Variables, _), DbReference),
+	erase(DbReference),!,
+	RemainingBlock is Block - 1,
+	remove_samp(RemainingBlock, Samp).
+
+ensure_sampled(S) :- maplist(check_sam, S).
+
+check_sam((RequiredHead, Variables)) :- transformed:samp(RequiredHead, Variables, _).
 
 /*
 	Erase all previously recorded sample entries from the database.

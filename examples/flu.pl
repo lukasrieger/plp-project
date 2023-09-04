@@ -6,5 +6,6 @@
 
 0.7::cold <--- [].
 
-flu(robert).
 flu(david).
+flu(robert).
+
