@@ -4,6 +4,10 @@
 Sampling of probablistic logic programs for SWI-Prolog, similar to Fabrizio Riguzzi's MCINTYRE (2013):
 http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf
 
+For information regarding approximate inference via Gibbs sampling / Markov Chain Monte Carlo (MCMC) sampling, see [An Analysis of Gibbs Sampling for Probabilistic
+Logic Programs](https://ceur-ws.org/Vol-2678/paper12.pdf) or [A Comparison of MCMC Sampling
+for Probabilistic Logic Programming
+](https://link.springer.com/chapter/10.1007/978-3-030-35166-3_2) (p. 19-29).
 
 ### Running the sampler
 
