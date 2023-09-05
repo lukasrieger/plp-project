@@ -4,6 +4,7 @@
 Sampling of probablistic logic programs for SWI-Prolog, similar to Fabrizio Riguzzi's MCINTYRE (2013):
 http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf
 
+Further documentation: https://lukasrieger.github.io/plp-project/
 
 ### Running the sampler
 
