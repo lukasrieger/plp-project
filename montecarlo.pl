@@ -15,7 +15,7 @@ take_samples(Query, Threshold, BatchSize, Probability) :-
 	take_samples(Query, Threshold, BatchSize, 0, 0, Probability).
 take_samples(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, Probability) :-
 	sample_batch(Query, Successes, BatchSize),
-	write(Successes), writeln(' samples succeeded.'),
+	% write(Successes), writeln(' samples succeeded.'),
 	NewSamples is CurrSamples + BatchSize,
 	NewSuccesses is CurrSuccesses + Successes,
 	NewProbability is NewSuccesses / NewSamples,
@@ -23,14 +23,14 @@ take_samples(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, Probabilit
 	Confidence is 2 * 1.95996 * sqrt(NewProbability * (1 - NewProbability) / NewSamples),
 	% See p. 9:
 	(Confidence < Threshold, (NewSuccesses > 5, NewSamples - NewSuccesses > 5; NewSamples >= 50000) ->
-		write('In total '), write(NewSuccesses), write('/'), write(NewSamples), writeln(' succeeded.'),
+		write(NewSuccesses), write('/'), write(NewSamples), writeln(' samples succeeded.'),
 		Probability is NewProbability
 	;
 		take_samples(Query, Threshold, BatchSize, NewSamples, NewSuccesses, Probability)
 	).
 
 sample_batch(Query, Successes, BatchSize) :-
-	write('Sampling batch of size '), writeln(BatchSize),
+	% write('Sampling batch of size '), writeln(BatchSize),
 	sample_batch(Query, 0, Successes, BatchSize).
 sample_batch(_Query, CurrSuccesses, Successes, 0) :-
 	Successes = CurrSuccesses,
