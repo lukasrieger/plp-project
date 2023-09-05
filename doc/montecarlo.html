@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>montecarlo.pl</title>
+
+<link rel="stylesheet" type="text/css" href="pldoc.css">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+<body>
+
+
+<h1 class="file"><span style="float:right"></span>montecarlo.pl</h1>
+
+<dl>
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo_no_confidence/5"><b class="pred">montecarlo_no_confidence</b><var class="arglist">(+File:file, :Query:atom, +SampleCount:int, +SamplingMethod:compound, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
+The predicate samples <var>Query</var> a number of times, as indicated by <var>SampleCount</var> and returns the Probability of the query being true.
+
+<p>
+The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</p></dd>
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/4"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, +SamplingMethod:compound, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
+The predicate then samples <var>Query</var> a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches a certain
+threshold (0.02 by default) and returns the Probability of the query being true.
+The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</dd>
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/5"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, +Threshold:float, +SamplingMethod:atom, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
+The predicate samples <var>Query</var> a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given <var>Threshold</var>.
+The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</dd>
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/6"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, +Threshold:float, +BatchSize:int, +SamplingMethod:atom, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate samples <var>Query</var> in batch sizes of <var>BatchSize</var> until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given <var>Threshold</var>.
+The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</dd>
+</dl>
+
+</body>
+</html>

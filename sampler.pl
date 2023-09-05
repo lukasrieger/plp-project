@@ -12,9 +12,11 @@
 :- dynamic(transformed:samp/3).
 :- dynamic(transformed:sampled/3).
 
-/*
-	Load the PLP under the given [File] source and transform it's content for future sampling.
-*/
+/**
+ * load_program(:File:file) is det
+ * 
+ * Load the PLP under the given [File] source and transform it's content for future sampling. 
+ */
 load_program(File) :-
 	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
 	findall(Head <--- Body, transformed:(Head <--- Body), Clauses),
@@ -22,13 +24,13 @@ load_program(File) :-
 	maplist(get_disjunction_weights, ClausesPerDisjunction, WeightsPerDisjunction),
 	assert_disjunctions(ClausesPerDisjunction, WeightsPerDisjunction).
 
-/*
-	Parse disjunctions in a clause's head by transforming it into a list of clauses instead,
-	with one element of the disjunction as each new clause's head:
-	0.5::reallycold; 0.5::freezing <--- [cold]
-	↓
-	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]]
-*/
+/**
+ * Parse disjunctions in a clause's head by transforming it into a list of clauses instead,
+ *	with one element of the disjunction as each new clause's head:
+ *	0.5::reallycold; 0.5::freezing <--- [cold]
+ *	↓
+ *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]] 
+ */
 resolve_disjunct_heads((Head; RestHeads <--- Body), [Head <--- Body | Rest]) :-
 	resolve_disjunct_heads(RestHeads <--- Body, Rest),
 	!.
@@ -102,8 +104,11 @@ list_to_conjunction([Term], Term) :-
 list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
 	list_to_conjunction(Rest, Conjunction).
 
-/*
-	Cleanup environment state (usually after running a sampling process to completion).
+/**
+ * unload_program is det
+ * 
+ * Cleanup environment state (usually after running a sampling process to completion).
+ * 	
  */
 unload_program :-
 	findall(Predicate, current_predicate(transformed:Predicate), Predicates),
@@ -136,22 +141,27 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 		sample(Tail, Succ, Next, Prob, HeadId)
 	).
 
-/*
-	Assuming a suitable object program has already been transformed via [load_program],
-	take a sample of the given [Goal].
-*/
+/**
+ * sample_goal(:Goal:goal) is det
+ * 	
+ * Assuming a suitable object program has already been transformed via [load_program],
+ * take a sample of the given [Goal]. 
+ * 
+ */
 sample_goal(Goal) :-
 	abolish_all_tables,
 	clear_recorded_samples,
 	transformed:call(Goal).
 
-/*
-	TODO: Gibbs sampling requires sample_head to use assert instead of recorda/recorded.
-	Read: https://ceur-ws.org/Vol-2678/paper12.pdf or https://link.springer.com/chapter/10.1007/978-3-030-35166-3_2
-		  for further information regarding sampling (Gibbs/ MCMC-sampling).
-		  
-	TODO: Offer interface predicate to sample a goal given certain evidence (see link #1).
-*/
+
+
+/**
+ * sample_goal_gibbs(+BlockSize:int, :Goal:atom) is det
+ * 
+ * Assuming a suitable object program has already been transformed via load_program,
+ * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
+ * 
+ */
 sample_goal_gibbs(BlockSize, Query) :-
 	remove_samples(BlockSize, Removed),
 	transformed:call(Query),

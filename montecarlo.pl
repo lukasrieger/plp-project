@@ -3,10 +3,48 @@
 :- use_module(sampler).
 
 
+/**
+ * montecarlo_no_confidence(+File:file, :Query:atom, +SampleCount:int, +SamplingMethod:compound, -Propability:float) is det
+ * 
+ * The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
+ * The predicate samples Query a number of times, as indicated by SampleCount and returns the Probability of the query being true.
+ * 
+ * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
+ */
+montecarlo_no_confidence(File, Query, SampleCount, SamplingMethod, Probability) :-
+	resolve_sampling_method(SamplingMethod, SampleVia),
+	write('Performing sampling via: '), writeln(SampleVia),
+	sampler:load_program(File),
+	take_samples_no_confidence(Query, SampleCount, SampleVia, Probability),
+	sampler:unload_program.
+
+/**
+ * montecarlo(+File:file, :Query:atom, +SamplingMethod:compound, -Propability:float) is det
+ * 
+ * The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
+ * The predicate then samples Query a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches a certain
+ * threshold (0.02 by default) and returns the Probability of the query being true.
+ * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
+ */
 montecarlo(File, Query, SamplingMethod, Probability) :-
 	montecarlo(File, Query, 0.02, SamplingMethod, Probability).
+
+/**
+ * montecarlo(+File:file, :Query:atom, +Threshold:float, +SamplingMethod:atom, -Propability:float) is det
+ * 
+ * The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
+ * The predicate samples Query a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given Threshold.
+ * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
+ */
 montecarlo(File, Query, Threshold, SamplingMethod, Probability) :-
 	montecarlo(File, Query, Threshold, 500, SamplingMethod, Probability).
+
+/**
+ * montecarlo(+File:file, :Query:atom, +Threshold:float, +BatchSize: int, +SamplingMethod:atom, -Propability:float) is det
+ * 
+ * The predicate samples Query in batch sizes of BatchSize until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given Threshold.
+ * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
+ */
 montecarlo(File, Query, Threshold, BatchSize, SamplingMethod, Probability) :-
 	resolve_sampling_method(SamplingMethod, SampleVia),
 	write('Performing sampling via: '), writeln(SampleVia),
@@ -49,12 +87,6 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining, SampleVia) :-
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SampleVia).
 
 
-montecarlo_no_confidence(File, Query, SampleCount, SamplingMethod, Probability) :-
-	resolve_sampling_method(SamplingMethod, SampleVia),
-	write('Performing sampling via: '), writeln(SampleVia),
-	sampler:load_program(File),
-	take_samples_no_confidence(Query, SampleCount, SampleVia, Probability),
-	sampler:unload_program.
 
 take_samples_no_confidence(Query, SampleCount, SampleVia, Probability) :- 
 	take_samples_no_confidence(Query, SampleCount, 0, 0, SampleVia, Probability).

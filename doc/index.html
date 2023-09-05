@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>plp</title>
+
+<link rel="stylesheet" type="text/css" href="pldoc.css">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+<body>
+
+
+<h1 class="wiki">PLP - Final Project</h1>
+
+<h2 class="wiki">A Monte Carlo System for Probabilistic Logic Programming</h2>
+
+<p>
+Sampling of probablistic logic programs for SWI-Prolog, similar to Fabrizio Riguzzi's MCINTYRE (2013):
+<a href="http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf">http://mcs.unife.it/~friguzzi/Papers/Rig13-FI-IJ.pdf</a></p>
+
+<h3 class="wiki">Running the sampler</h3>
+
+<ol>
+<li>Start a SWI-Prolog session at the command line via <code>swipl</code></li>
+<li>Load the <code>montecarlo</code> module, e. g. via <code>[montecarlo].</code></li>
+<li>Invoke <code>montecarlo('input.pl', Query, P).</code>, where the first parameter denotes the path to a PLP object program
+and the second denotes the query to be sampled. After successful sampling, <var>P</var> will contain the sampled probability
+of <var>Query</var> being true under the given input.</li>
+</ol>
+
+<h3 class="wiki">Available entry points</h3>
+
+<p>
+There are multiple ways to start a sampling process, depending on how much customization of the sampling process is required.</p>
+
+<p>
+The <code>montecarlo</code> module exposes 3 clauses for this purpose:</p>
+<ul>
+<li><a class="extmanual" href="http://www.swi-prolog.org/pldoc/man?predicate=montecarlo/3">montecarlo/3</a> with <code>montecarlo(Program, Query, Probability)</code></li>
+<li><a class="extmanual" href="http://www.swi-prolog.org/pldoc/man?predicate=montecarlo/4">montecarlo/4</a> with <code>montecarlo(Program, Query, Threshold, Probability)</code></li>
+<li><a class="extmanual" href="http://www.swi-prolog.org/pldoc/man?predicate=montecarlo/5">montecarlo/5</a> with <code>montecarlo(Program, Query, Threshold, BatchSize, Probability)</code>
+If not specified, Threshold defaults to <code>0.02</code> and BatchSize defaults to <code>500</code>.
+
+<p>
+</ul>
+
+<h2 class="wiki subdirs">Sub directories</h2>
+
+<table class="subdirs">
+<tr><td><a class="subdir" href="examples/index.html">[dir] examples</a></td></tr>
+</table>
+
+<h2 class="wiki plfiles">Prolog files</h2>
+
+<table class="summary">
+<tr><th colspan="3" class="file"><span style="float:left"><a href="montecarlo.html">montecarlo.pl</a></span><span style="float:right"></span></th></tr>
+<tr class="public"><td><a href="montecarlo.html#montecarlo/4">montecarlo/4</a></td><td class="summary">The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr class="public"><td><a href="montecarlo.html#montecarlo/5">montecarlo/5</a></td><td class="summary">The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr class="public"><td><a href="montecarlo.html#montecarlo/6">montecarlo/6</a></td><td class="summary">The predicate samples Query in batch sizes of BatchSize until the confidence (as detailed in Riguzzi 2013, p.</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr class="public"><td><a href="montecarlo.html#montecarlo_no_confidence/5">montecarlo_no_confidence/5</a></td><td class="summary">The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr><th colspan="3" class="file"><span style="float:left"><a href="sampler.html">sampler.pl</a></span><span style="float:right"></span></th></tr>
+<tr class="public"><td><a href="sampler.html#load_program/1">load_program/1</a></td><td class="summary">Load the PLP under the given [File] source and transform it's content for future sampling.</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr class="public"><td><a href="sampler.html#sample_goal/1">sample_goal/1</a></td><td class="summary">Assuming a suitable object program has already been transformed via [load_program], take a sample of the given [Goal].</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr class="public"><td><a href="sampler.html#sample_goal_gibbs/2">sample_goal_gibbs/2</a></td><td class="summary">Assuming a suitable object program has already been transformed via load_program, take a sample of the given Query via Gibbs-Sampling as detailed in <a href="https://ceur-ws.org/Vol-2678/paper12.pdf.">https://ceur-ws.org/Vol-2678/paper12.pdf.</a></td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+<tr class="public"><td><a href="sampler.html#unload_program/0">unload_program/0</a></td><td class="summary">Cleanup environment state (usually after running a sampling process to completion).</td><td align="right"><span style="white-space: nowrap"></span></td></tr>
+</table>
+
+</body>
+</html>
