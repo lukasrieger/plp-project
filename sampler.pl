@@ -2,7 +2,7 @@
 	load_program/1,
 	unload_program/0,
 	sample_goal/1,
-	sample_goal_gibbs/1,
+	sample_goal_gibbs/2,
 	op(1120, xfx, <---),
 	op(1080, xfy, ::)
 ]).
@@ -10,6 +10,7 @@
 :- dynamic(transformed:(<---)/2).
 :- dynamic((::)/2).
 :- dynamic(transformed:samp/3).
+:- dynamic(transformed:sampled/3).
 
 /*
 	Load the PLP under the given [File] source and transform it's content for future sampling.
@@ -108,15 +109,19 @@ unload_program :-
 	findall(Predicate, current_predicate(transformed:Predicate), Predicates),
 	maplist(transformed:abolish, Predicates).
 
+
+
 /*
 	Generate a sample for a head, given its respective weights.
 */
-sample_head(_Weights, RequiredHead, Variables, HeadId) :-
-	recorded(samples, (RequiredHead, Variables, HeadId), _), !.
+sample_head(_Weights, RequiredHead, Variables, HeadId) :- 
+	transformed:sampled(RequiredHead, Variables, HeadId), !.
 
 sample_head(Weights, RequiredHead, Variables, HeadId) :-
 	sample(Weights, HeadId),
-	recorda(samples, (RequiredHead, Variables, HeadId), _).
+	transformed:assertz(sampled(RequiredHead, Variables, HeadId)).
+
+
 
 sample(Weights, HeadId) :-
 	random(Prob),
@@ -137,7 +142,7 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 */
 sample_goal(Goal) :-
 	abolish_all_tables,
-	clear_recorded_pl_heads,
+	clear_recorded_samples,
 	transformed:call(Goal).
 
 /*
@@ -147,25 +152,26 @@ sample_goal(Goal) :-
 		  
 	TODO: Offer interface predicate to sample a goal given certain evidence (see link #1).
 */
-sample_goal_gibbs(Query) :-
-	Block is 2,
-	remove_samples(Block, Removed),
-	copy_term(Query, Query1),
-	transformed:call(Query1),
+sample_goal_gibbs(BlockSize, Query) :-
+	remove_samples(BlockSize, Removed),
+	transformed:call(Query),
 	ensure_sampled(Removed).
 
 remove_samples(Block, Samp) :- remove_samp(Block, Samp); Samp = [].
 
 remove_samp(0, []) :- !.
 remove_samp(Block, [(RequiredHead, Variables) | Samp]) :-
-	recorded(samples, (RequiredHead, Variables, _), DbReference),
-	erase(DbReference),!,
+	transformed:retract(sampled(RequiredHead, Variables, _)),!,
 	RemainingBlock is Block - 1,
 	remove_samp(RemainingBlock, Samp).
 
 ensure_sampled(S) :- maplist(check_sam, S).
 
 check_sam((RequiredHead, Variables)) :- transformed:samp(RequiredHead, Variables, _).
+
+
+
+clear_recorded_samples :- transformed:retractall(sampled(_, _, _)).
 
 /*
 	Erase all previously recorded sample entries from the database.

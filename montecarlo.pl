@@ -1,13 +1,13 @@
-:- module(montecarlo, [montecarlo/4, montecarlo/5, montecarlo/6]).
+:- module(montecarlo, [montecarlo/4, montecarlo/5, montecarlo/6, montecarlo_no_confidence/5]).
 
 :- use_module(sampler).
 
 
-montecarlo(File, Query, Probability, SamplingMethod) :-
-	montecarlo(File, Query, 0.02, Probability, SamplingMethod).
-montecarlo(File, Query, Threshold, Probability, SamplingMethod) :-
-	montecarlo(File, Query, Threshold, 500, Probability, SamplingMethod).
-montecarlo(File, Query, Threshold, BatchSize, Probability, SamplingMethod) :-
+montecarlo(File, Query, SamplingMethod, Probability) :-
+	montecarlo(File, Query, 0.02, SamplingMethod, Probability).
+montecarlo(File, Query, Threshold, SamplingMethod, Probability) :-
+	montecarlo(File, Query, Threshold, 500, SamplingMethod, Probability).
+montecarlo(File, Query, Threshold, BatchSize, SamplingMethod, Probability) :-
 	resolve_sampling_method(SamplingMethod, SampleVia),
 	write('Performing sampling via: '), writeln(SampleVia),
 	sampler:load_program(File),
@@ -49,8 +49,37 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining, SampleVia) :-
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SampleVia).
 
 
+montecarlo_no_confidence(File, Query, SampleCount, SamplingMethod, Probability) :-
+	resolve_sampling_method(SamplingMethod, SampleVia),
+	write('Performing sampling via: '), writeln(SampleVia),
+	sampler:load_program(File),
+	take_samples_no_confidence(Query, SampleCount, SampleVia, Probability),
+	sampler:unload_program.
+
+take_samples_no_confidence(Query, SampleCount, SampleVia, Probability) :- 
+	take_samples_no_confidence(Query, SampleCount, 0, 0, SampleVia, Probability).
+
+take_samples_no_confidence(Query, SampleCount, CurrSamples, CurrSuccesses, SampleVia, Probability) :-
+	sample_round(Query, Success, SampleVia),
+	NewSamples is CurrSamples + 1,
+	NewSuccesses is CurrSuccesses + Success,
+	NewProbability is NewSuccesses / NewSamples,
+	(CurrSamples >= SampleCount - 1 ->
+		write('In total '), write(NewSuccesses), write('/'), write(NewSamples), writeln(' succeeded.'),
+		Probability is NewProbability
+		;
+		take_samples_no_confidence(Query, SampleCount, NewSamples, NewSuccesses, SampleVia, Probability)
+	).
+
+sample_round(Query, Success, SampleVia) :-
+	(call(SampleVia, Query) ->
+		Success is 1
+		;
+		Success is 0
+	).
 
 
-resolve_sampling_method(standard, Method) :- Method = sampler:sample_goal.
 
-resolve_sampling_method(gibbs, Method) :- Method = sampler:sample_goal_gibbs.
+resolve_sampling_method(standard, Method) :- Method = sample_goal.
+
+resolve_sampling_method((gibbs, BlockSize), Method) :- Method =.. [sample_goal_gibbs, BlockSize].
