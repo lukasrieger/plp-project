@@ -108,7 +108,6 @@ list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
  * unload_program is det
  * 
  * Cleanup environment state (usually after running a sampling process to completion).
- * 	
  */
 unload_program :-
 	findall(Predicate, current_predicate(transformed:Predicate), Predicates),
@@ -156,7 +155,7 @@ sample_goal(Goal) :-
 
 
 /**
- * sample_goal_gibbs(+BlockSize:int, :Goal:atom) is det
+ * sample_goal_gibbs(+BlockSize:int, :Query:atom) is det
  * 
  * Assuming a suitable object program has already been transformed via load_program,
  * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.

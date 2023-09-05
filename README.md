@@ -26,10 +26,13 @@ There are multiple ways to start a sampling process, depending on how much custo
 
 The `montecarlo` module exposes 3 clauses for this purpose:
 
-- `montecarlo/3` with `montecarlo(Program, Query, Probability)`
-- `montecarlo/4` with `montecarlo(Program, Query, Threshold, Probability)`
-- `montecarlo/5` with `montecarlo(Program, Query, Threshold, BatchSize, Probability)`
+- `montecarlo/3` with `montecarlo(Program, Query, Probability, SamplingMethod)`
+- `montecarlo/4` with `montecarlo(Program, Query, Threshold, Probability, SamplingMethod)`
+- `montecarlo/5` with `montecarlo(Program, Query, Threshold, BatchSize, Probability, SamplingMethod)`
 
 If not specified, Threshold defaults to `0.02` and BatchSize defaults to `500`.
 
-<!--- TODO: Figure out & explain what the threshold means. --->
+The sampling method can be configured via `SamplingMethod`:
+- `(gibbs, BlockSize)` -> Perform Gibbs-Sampling.
+- `standard` -> Perform standard sampling with full sample resets between individual samples.
+

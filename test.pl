@@ -20,7 +20,7 @@ add_directory([File | RestFiles], Directory, [OutputFile | RestOutputFiles]) :-
 	add_directory(RestFiles, Directory, RestOutputFiles).
 
 
-mc_test(File, Query, ExpectedP) :-
+mc_test(File, Query, SampleVia, ExpectedP) :-
 	writef('Testing file "%w" for query "%w"...\n', [File, Query]),
-	montecarlo(File, Query, ResultP),
+	montecarlo(File, Query, SampleVia, ResultP),
 	writef('Expected: %w\n  Result: %w\n\n', [ExpectedP, ResultP]).
