@@ -2,16 +2,21 @@
 	load_program/1,
 	unload_program/0,
 	sample_goal/1,
+	sample_goal_gibbs/2,
 	op(1120, xfx, <---),
 	op(1080, xfy, ::)
 ]).
 
-:- dynamic((<---)/2).
+:- dynamic(transformed:(<---)/2).
 :- dynamic((::)/2).
+:- dynamic(transformed:samp/3).
+:- dynamic(transformed:sampled/3).
 
-/*
-	Load the PLP under the given [File] source and transform it's content for future sampling.
-*/
+/**
+ * load_program(:File:file) is det
+ * 
+ * Load the PLP under the given [File] source and transform it's content for future sampling. 
+ */
 load_program(File) :-
 	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
 	findall(Head <--- Body, transformed:(Head <--- Body), Clauses),
@@ -19,13 +24,13 @@ load_program(File) :-
 	maplist(get_disjunction_weights, ClausesPerDisjunction, WeightsPerDisjunction),
 	assert_disjunctions(ClausesPerDisjunction, WeightsPerDisjunction).
 
-/*
-	Parse disjunctions in a clause's head by transforming it into a list of clauses instead,
-	with one element of the disjunction as each new clause's head:
-	0.5::reallycold; 0.5::freezing <--- [cold]
-	↓
-	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]]
-*/
+/**
+ * Parse disjunctions in a clause's head by transforming it into a list of clauses instead,
+ *	with one element of the disjunction as each new clause's head:
+ *	0.5::reallycold; 0.5::freezing <--- [cold]
+ *	↓
+ *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]] 
+ */
 resolve_disjunct_heads((Head; RestHeads <--- Body), [Head <--- Body | Rest]) :-
 	resolve_disjunct_heads(RestHeads <--- Body, Rest),
 	!.
@@ -82,7 +87,13 @@ assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionInde
 	flatten(ConjunctionsVariables, Variables),
 	list_to_conjunction(Body, BodyConjunction),
 	Transformed = (Head :- (BodyConjunction, sampler:sample_head(Weights, DisjunctionIndex, Variables, NH), NH = HeadIndex)),
-	transformed:assertz(Transformed).
+	generate_clause_samp(Weights, DisjunctionIndex, Variables, Generated),
+	transformed:assertz(Transformed),
+	transformed:assertz(Generated).
+
+
+generate_clause_samp(Weights, DisjunctionIndex, Variables, Samp) :-
+	Samp = (samp(DisjunctionIndex, Variables, Val) :- (sampler:sample_head(Weights, DisjunctionIndex, Variables, Val)) )  .
 
 /*
 	Transform a list of terms extracted from an object program's clause
@@ -93,22 +104,29 @@ list_to_conjunction([Term], Term) :-
 list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
 	list_to_conjunction(Rest, Conjunction).
 
-/*
-	Cleanup environment state (usually after running a sampling process to completion).
+/**
+ * unload_program is det
+ * 
+ * Cleanup environment state (usually after running a sampling process to completion).
+ * 	
  */
 unload_program :-
 	findall(Predicate, current_predicate(transformed:Predicate), Predicates),
 	maplist(transformed:abolish, Predicates).
 
+
+
 /*
 	Generate a sample for a head, given its respective weights.
 */
-sample_head(_Weights, RequiredHead, Variables, HeadId) :-
-	recorded(samples, (RequiredHead, Variables, HeadId), _), !.
+sample_head(_Weights, RequiredHead, Variables, HeadId) :- 
+	transformed:sampled(RequiredHead, Variables, HeadId), !.
 
 sample_head(Weights, RequiredHead, Variables, HeadId) :-
 	sample(Weights, HeadId),
-	recorda(samples, (RequiredHead, Variables, HeadId), _).
+	transformed:assertz(sampled(RequiredHead, Variables, HeadId)).
+
+
 
 sample(Weights, HeadId) :-
 	random(Prob),
@@ -123,14 +141,47 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 		sample(Tail, Succ, Next, Prob, HeadId)
 	).
 
-/*
-	Assuming a suitable object program has already been transformed via [load_program],
-	take a sample of the given [Goal].
-*/
+/**
+ * sample_goal(:Goal:goal) is det
+ * 	
+ * Assuming a suitable object program has already been transformed via [load_program],
+ * take a sample of the given [Goal]. 
+ * 
+ */
 sample_goal(Goal) :-
 	abolish_all_tables,
-	clear_recorded_pl_heads,
+	clear_recorded_samples,
 	transformed:call(Goal).
+
+
+
+/**
+ * sample_goal_gibbs(+BlockSize:int, :Goal:atom) is det
+ * 
+ * Assuming a suitable object program has already been transformed via load_program,
+ * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
+ * 
+ */
+sample_goal_gibbs(BlockSize, Query) :-
+	remove_samples(BlockSize, Removed),
+	transformed:call(Query),
+	ensure_sampled(Removed).
+
+remove_samples(Block, Samp) :- remove_samp(Block, Samp); Samp = [].
+
+remove_samp(0, []) :- !.
+remove_samp(Block, [(RequiredHead, Variables) | Samp]) :-
+	transformed:retract(sampled(RequiredHead, Variables, _)),!,
+	RemainingBlock is Block - 1,
+	remove_samp(RemainingBlock, Samp).
+
+ensure_sampled(S) :- maplist(check_sam, S).
+
+check_sam((RequiredHead, Variables)) :- transformed:samp(RequiredHead, Variables, _).
+
+
+
+clear_recorded_samples :- transformed:retractall(sampled(_, _, _)).
 
 /*
 	Erase all previously recorded sample entries from the database.
