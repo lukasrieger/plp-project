@@ -1,62 +1,69 @@
-:- module(montecarlo, [montecarlo/4, montecarlo/5, montecarlo/6, montecarlo_no_confidence/5]).
+:- module(montecarlo, [montecarlo/3, montecarlo/4]).
 
 :- use_module(sampler).
 
-
 /**
- * montecarlo_no_confidence(+File:file, :Query:atom, +SampleCount:int, +SamplingMethod:compound, -Propability:float) is det
- * 
- * The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
- * The predicate samples Query a number of times, as indicated by SampleCount and returns the Probability of the query being true.
- * 
- * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
+ * montecarlo(+File:file, :Query:atom, -Probability:float, +Options:list) is det
+ *
+ * The predicate assumes that `File` designates a PLP object program, which is consulted and
+ * transformed into an equivalent standard prolog program. The predicate then samples `Query`
+ * either a fixed number of times or until a confidence value (as detailed in Riguzzi 2013, p. 6)
+ * reaches a configured threshold and returns the sampled `Probability` of the query being true.
+ * Non-ground queries are treated as existential queries.
+ *
+ * `Options` is a list configuring the sampling process. Available options:
+ * * sampler(+SamplerParams:list)
+ *   First parameter is either `standard` or `gibbs`. When using Gibbs sampling, a second
+ *   parameter controls the block size of variables sampled together.
+ * * confidence(+Confidence:float)
+ *   Configures the amount of samples taken by defining an expected target accuracy for the result.
+ *   Set to a value other than a number to instead take a fixed amount of samples.
+ * * count(+Count:int)
+ *   Amount of samples taken.
+ *   (confidence unset -> in total; confidence set -> at once between calulating confidence values)
  */
-montecarlo_no_confidence(File, Query, SampleCount, SamplingMethod, Probability) :-
-	resolve_sampling_method(SamplingMethod, SampleVia),
-	write('Performing sampling via: '), writeln(SampleVia),
+montecarlo(File, Query, Probability, Options) :-
+	Defaults = [
+		sampler(standard),
+		count(1000),
+		confidence(0.02)
+	],
+	merge_options(Options, Defaults, Opts),
+	option(sampler(SamplerParams), Opts),
+	option(count(Count), Opts),
+	option(confidence(Confidence), Opts),
+	resolve_sampler(SamplerParams, SamplerOpts),
+	writef('Using sampler: %w\n', [SamplerOpts]),
 	sampler:load_program(File),
-	take_samples_no_confidence(Query, SampleCount, SampleVia, Probability),
+	(number(Confidence) ->
+		writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence]),
+		take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability)
+		;
+		writef('Taking %w samples.\n', [Count]),
+		take_samples_fixed(Query, Count, SamplerOpts, Probability)
+	),
 	sampler:unload_program.
 
 /**
- * montecarlo(+File:file, :Query:atom, +SamplingMethod:compound, -Propability:float) is det
- * 
- * The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
- * The predicate then samples Query a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches a certain
- * threshold (0.02 by default) and returns the Probability of the query being true.
- * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
+ * montecarlo(+File:file, :Query:atom, -Probability:float) is det
+ *
+ * Alias of montecarlo/3 with empty options.
  */
-montecarlo(File, Query, SamplingMethod, Probability) :-
-	montecarlo(File, Query, 0.02, SamplingMethod, Probability).
+montecarlo(File, Query, Probability) :-
+	montecarlo(File, Query, Probability, []).
 
-/**
- * montecarlo(+File:file, :Query:atom, +Threshold:float, +SamplingMethod:atom, -Propability:float) is det
- * 
- * The predicate assumes that File designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
- * The predicate samples Query a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given Threshold.
- * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
- */
-montecarlo(File, Query, Threshold, SamplingMethod, Probability) :-
-	montecarlo(File, Query, Threshold, 500, SamplingMethod, Probability).
+resolve_sampler(Params, Sampler) :-
+	(is_list(Params) -> fail; resolve_sampler([Params], Sampler)).
+resolve_sampler([standard], Sampler) :- Sampler = sample_goal, !.
+resolve_sampler([gibbs], Sampler) :- Sampler =.. [sample_goal_gibbs, 1], !.
+resolve_sampler([gibbs, BlockSize], Sampler) :- Sampler =.. [sample_goal_gibbs, BlockSize], !.
 
-/**
- * montecarlo(+File:file, :Query:atom, +Threshold:float, +BatchSize: int, +SamplingMethod:atom, -Propability:float) is det
- * 
- * The predicate samples Query in batch sizes of BatchSize until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given Threshold.
- * The sampling method used by this predicate can be configured via SamplingMethod by either passing the constant `standard` or `(gibbs, BlockSize)`.
- */
-montecarlo(File, Query, Threshold, BatchSize, SamplingMethod, Probability) :-
-	resolve_sampling_method(SamplingMethod, SampleVia),
-	write('Performing sampling via: '), writeln(SampleVia),
-	sampler:load_program(File),
-	take_samples(Query, Threshold, BatchSize, Probability, SampleVia),
-	sampler:unload_program.
-
-take_samples(Query, Threshold, BatchSize, Probability, SampleVia) :-
-	take_samples(Query, Threshold, BatchSize, 0, 0, Probability, SampleVia).
-take_samples(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, Probability, SampleVia) :-
-	sample_batch(Query, Successes, BatchSize, SampleVia),
-	write(Successes), writeln(' samples succeeded.'),
+take_samples_confidence(Query, Threshold, BatchSize, SamplerOpts, Probability) :-
+	take_samples_confidence(Query, Threshold, BatchSize, 0, 0, SamplerOpts, Probability).
+take_samples_confidence(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, SamplerOpts, Probability) :-
+	% write('Sampling batch of size '), writeln(BatchSize),
+	sample_batch(Query, Successes, BatchSize, SamplerOpts),
+	% write(Successes), writeln(' samples succeeded.'),
 	NewSamples is CurrSamples + BatchSize,
 	NewSuccesses is CurrSuccesses + Successes,
 	NewProbability is NewSuccesses / NewSamples,
@@ -64,55 +71,44 @@ take_samples(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, Probabilit
 	Confidence is 2 * 1.95996 * sqrt(NewProbability * (1 - NewProbability) / NewSamples),
 	% See p. 9:
 	(Confidence < Threshold, (NewSuccesses > 5, NewSamples - NewSuccesses > 5; NewSamples >= 50000) ->
-		write(NewSuccesses), write('/'), write(NewSamples), writeln(' samples succeeded.'),
+		writef('%w/%w samples succeeded.', [NewSuccesses, NewSamples]),
 		Probability is NewProbability
 	;
-		take_samples(Query, Threshold, BatchSize, NewSamples, NewSuccesses, Probability, SampleVia)
+		take_samples_confidence(Query, Threshold, BatchSize, NewSamples, NewSuccesses, SamplerOpts, Probability)
 	).
 
-
-sample_batch(Query, Successes, BatchSize, SampleVia) :-
-	write('Sampling batch of size '), writeln(BatchSize),
-	sample_batch(Query, 0, Successes, BatchSize, SampleVia).
+sample_batch(Query, Successes, BatchSize, SamplerOpts) :-
+	sample_batch(Query, 0, Successes, BatchSize, SamplerOpts).
 sample_batch(_Query, CurrSuccesses, Successes, 0, _) :-
 	Successes = CurrSuccesses,
 	!.
-sample_batch(Query, CurrSuccesses, Successes, Remaining, SampleVia) :-
-	(call(SampleVia, Query) ->
+sample_batch(Query, CurrSuccesses, Successes, Remaining, SamplerOpts) :-
+	(call(SamplerOpts, Query) ->
 		IsValid = 1
 		;
 		IsValid = 0
 	),
 	NewSuccesses is CurrSuccesses + IsValid,
 	NewRemaining is Remaining - 1,
-	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SampleVia).
+	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SamplerOpts).
 
-
-
-take_samples_no_confidence(Query, SampleCount, SampleVia, Probability) :- 
-	take_samples_no_confidence(Query, SampleCount, 0, 0, SampleVia, Probability).
-
-take_samples_no_confidence(Query, SampleCount, CurrSamples, CurrSuccesses, SampleVia, Probability) :-
-	sample_round(Query, Success, SampleVia),
+take_samples_fixed(Query, SampleCount, SamplerOpts, Probability) :-
+	take_samples_fixed(Query, SampleCount, 0, 0, SamplerOpts, Probability).
+take_samples_fixed(Query, SampleCount, CurrSamples, CurrSuccesses, SamplerOpts, Probability) :-
+	sample_round(Query, Success, SamplerOpts),
 	NewSamples is CurrSamples + 1,
 	NewSuccesses is CurrSuccesses + Success,
 	NewProbability is NewSuccesses / NewSamples,
 	(CurrSamples >= SampleCount - 1 ->
-		write('In total '), write(NewSuccesses), write('/'), write(NewSamples), writeln(' succeeded.'),
+		writef('%w/%w samples succeeded.', [NewSuccesses, NewSamples]),
 		Probability is NewProbability
-		;
-		take_samples_no_confidence(Query, SampleCount, NewSamples, NewSuccesses, SampleVia, Probability)
+	;
+		take_samples_fixed(Query, SampleCount, NewSamples, NewSuccesses, SamplerOpts, Probability)
 	).
 
-sample_round(Query, Success, SampleVia) :-
-	(call(SampleVia, Query) ->
+sample_round(Query, Success, SamplerOpts) :-
+	(call(SamplerOpts, Query) ->
 		Success is 1
 		;
 		Success is 0
 	).
-
-
-
-resolve_sampling_method(standard, Method) :- Method = sample_goal.
-
-resolve_sampling_method((gibbs, BlockSize), Method) :- Method =.. [sample_goal_gibbs, BlockSize].
