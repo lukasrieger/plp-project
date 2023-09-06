@@ -2,7 +2,10 @@
 	load_program/1,
 	unload_program/0,
 	sample_goal/1,
+	sample_goal_non_ext/1,
 	sample_goal_gibbs/2,
+	sample_goal_conditional/2,
+	sample_goal_conditional_gibbs/3,
 	op(1120, xfx, <---),
 	op(1080, xfy, ::)
 ]).
@@ -119,7 +122,8 @@ unload_program :-
 	Generate a sample for a head, given its respective weights.
 */
 sample_head(_Weights, RequiredHead, Variables, HeadId) :- 
-	transformed:sampled(RequiredHead, Variables, HeadId), !.
+	transformed:call(sampled(RequiredHead, Variables, HeadId)), !.
+	% transformed:sampled(RequiredHead, Variables, HeadId), !.
 
 sample_head(Weights, RequiredHead, Variables, HeadId) :-
 	sample(Weights, HeadId),
@@ -150,21 +154,65 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 sample_goal(Goal) :-
 	abolish_all_tables,
 	clear_recorded_samples,
+	% If Goal is non-ground, we need to copy the Goal into a fresh variable, 
+	% otherwise calling the Goal will unify the free variables in it with the first potential solution, 
+	% thereby incorrectly shrinking the search space. 
+	% As such, all sample_ methods currently interpret Goal as an existential Query, indivdual solutions and their respective probabilities are currently not computed.
+	copy_term(Goal, Goal1),
+	transformed:call(Goal1).
+
+
+sample_goal_non_ext(Goal) :-
+	abolish_all_tables,
+	clear_recorded_samples,
+	copy_term(Goal, Goal1),
+	numbervars(Goal1),
 	transformed:call(Goal).
 
 
+/**
+ * sample_goal_gibbs(:Evidence:atom, :Goal:atom) is det
+ * 
+ * Samples the given Query under the condition that Evidence is true -> p(q|e).
+ */
+sample_goal_conditional(Evidence, Goal) :-
+	abolish_all_tables,
+	clear_recorded_samples,
+	establish_evidence(Evidence),
+	copy_term(Goal, Goal1),
+	transformed:call(Goal1).
+
 
 /**
- * sample_goal_gibbs(+BlockSize:int, :Query:atom) is det
+ * sample_goal_gibbs(+BlockSize:int, :Goal:atom) is det
  * 
  * Assuming a suitable object program has already been transformed via load_program,
  * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
  * 
  */
-sample_goal_gibbs(BlockSize, Query) :-
+sample_goal_gibbs(BlockSize, Goal) :-
 	remove_samples(BlockSize, Removed),
-	transformed:call(Query),
+	copy_term(Goal, Goal1),
+	transformed:call(Goal1),
 	ensure_sampled(Removed).
+
+
+/**
+ * sample_goal_gibbs(+BlockSize:int, :Evidence:atom, :Goal:atom) is det
+ * 
+ * Samples the given Query under the condition that Evidence is true -> p(q|e).
+ * 
+ * Assuming a suitable object program has already been transformed via load_program,
+ * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
+ * 
+ */
+sample_goal_conditional_gibbs(BlockSize, Evidence, Goal) :-
+	establish_evidence(Evidence),
+	remove_samples(BlockSize, Removed),
+	copy_term(Goal, Goal1),
+	transformed:call(Goal1),
+	ensure_sampled(Removed).
+
 
 remove_samples(Block, Samp) :- remove_samp(Block, Samp); Samp = [].
 
@@ -174,9 +222,19 @@ remove_samp(Block, [(RequiredHead, Variables) | Samp]) :-
 	RemainingBlock is Block - 1,
 	remove_samp(RemainingBlock, Samp).
 
-ensure_sampled(S) :- maplist(check_sam, S).
+ensure_sampled(S) :- maplist(is_sampled, S).
 
-check_sam((RequiredHead, Variables)) :- transformed:samp(RequiredHead, Variables, _).
+is_sampled((RequiredHead, Variables)) :- transformed:samp(RequiredHead, Variables, _).
+
+establish_evidence(Evidence) :- 
+	(transformed:call(Evidence) ->
+	true
+	;
+	clear_recorded_samples,
+	establish_evidence(Evidence)
+	).
+
+
 
 
 

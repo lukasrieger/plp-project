@@ -113,6 +113,10 @@ sample_round(Query, Success, SampleVia) :-
 
 
 
-resolve_sampling_method(standard, Method) :- Method = sample_goal.
+resolve_sampling_method(standard, Method) :- Method = sample_goal_non_ext.
 
-resolve_sampling_method((gibbs, BlockSize), Method) :- Method =.. [sample_goal_gibbs, BlockSize].
+resolve_sampling_method((gibbs, BlockSize), Method) :- number(BlockSize), Method =.. [sample_goal_gibbs, BlockSize].
+
+resolve_sampling_method((standard, Evidence), Method) :- Method =.. [sample_goal_conditional, Evidence].
+
+resolve_sampling_method((gibbs, BlockSize, Evidence), Method) :- Method =.. [sample_goal_conditional_gibbs, BlockSize, Evidence].
