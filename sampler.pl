@@ -12,6 +12,8 @@
 :- dynamic(transformed:samp/3).
 :- dynamic(transformed:sampled/3).
 
+
+
 /**
  * load_program(:File:file) is det
  * 
@@ -20,7 +22,8 @@
 load_program(File) :-
 	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
 	findall(Head <--- Body, transformed:(Head <--- Body), Clauses),
-	maplist(resolve_disjunct_heads, Clauses, ClausesPerDisjunction), % returns nested list
+	maplist(body2list, Clauses, Clauses2),
+	maplist(resolve_disjunct_heads, Clauses2, ClausesPerDisjunction), % returns nested list
 	maplist(get_disjunction_weights, ClausesPerDisjunction, WeightsPerDisjunction),
 	assert_disjunctions(ClausesPerDisjunction, WeightsPerDisjunction).
 
@@ -103,6 +106,9 @@ list_to_conjunction([Term], Term) :-
 	!.
 list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
 	list_to_conjunction(Rest, Conjunction).
+
+body2list(Head <--- Body, ListBody) :- is_list(Body), ListBody = (Head <--- Body).
+body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <--- [Body]). 
 
 /**
  * unload_program is det
