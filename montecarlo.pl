@@ -89,7 +89,8 @@ sample_batch(_Query, CurrSuccesses, Successes, 0, _) :-
 	Successes = CurrSuccesses,
 	!.
 sample_batch(Query, CurrSuccesses, Successes, Remaining, SamplerOpts) :-
-	(call(SamplerOpts, Query) ->
+	copy_term(Query, QueryC),
+	(call(SamplerOpts, QueryC) ->
 		IsValid = 1
 		;
 		IsValid = 0
@@ -114,7 +115,8 @@ take_samples_fixed(Query, SampleCount, CurrSamples, CurrSuccesses, SamplerOpts, 
 	).
 
 sample_round(Query, Success, SamplerOpts) :-
-	(call(SamplerOpts, Query) ->
+	copy_term(Query, QueryC),
+	(call(SamplerOpts, QueryC) ->
 		Success is 1
 		;
 		Success is 0
