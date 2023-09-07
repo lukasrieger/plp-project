@@ -152,14 +152,12 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
  * 
  */
 sample_goal(Goal) :-
-	abolish_all_tables,
 	clear_recorded_samples,
 	% If Goal is non-ground, we need to copy the Goal into a fresh variable, 
 	% otherwise calling the Goal will unify the free variables in it with the first potential solution, 
 	% thereby incorrectly shrinking the search space. 
 	% As such, all sample_ methods currently interpret Goal as an existential Query, indivdual solutions and their respective probabilities are currently not computed.
-	copy_term(Goal, Goal1),
-	transformed:call(Goal1).
+	transformed:call(Goal).
 
 
 sample_goal_non_ext(Goal) :-

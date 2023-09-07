@@ -2,6 +2,9 @@
 
 :- use_module(sampler).
 
+
+:- dynamic(transformed:mem/4).
+
 /**
  * montecarlo(+File:file, :Query:atom, -Probability:float, +Options:list) is det
  *
@@ -25,6 +28,12 @@
  *   Suppress logging informational output (if value > 0).
  */
 montecarlo(File, Query, Probability, Options) :-
+	sampler:load_program(File),
+	montecarlo_(Query, Probability, Options),
+	sampler:unload_program.
+
+
+montecarlo_(Query, Probability, Options) :-
 	Defaults = [
 		sampler(standard),
 		count(1000),
@@ -37,17 +46,41 @@ montecarlo(File, Query, Probability, Options) :-
 	option(confidence(Confidence), Opts),
 	option(silent(Silent), Opts),
 	resolve_sampler(SamplerParams, SamplerOpts),
-	(Silent > 0 -> !; writef('Using sampler: %w\n', [SamplerOpts])),
-	sampler:load_program(File),
+	(Silent > 0 -> true; writef('Using sampler: %w\n', [SamplerOpts])),
+	copy_term(Query, Query1),
+	numbervars(Query1),
+	save_samples(Query1),
 	(number(Confidence) ->
-		(Silent > 0 -> !; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
+		(Silent > 0 -> true; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
 		take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability, Samples, Successes)
 		;
-		(Silent > 0 -> !; writef('Taking %w samples.\n', [Count])),
-		take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes)
-	),
-	(Silent > 0 -> !; writef('%w/%w samples succeeded.\n', [Successes, Samples])),
-	sampler:unload_program.
+		(Silent > 0 -> true; writef('Taking %w samples.\n', [Count])),
+		nonground(Query, X),
+		findall(Query, take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes), Results)
+	), !,
+	(Silent > 0 -> true; writef('%w/%w samples succeeded.\n', [Successes, Samples])),
+
+	erase_samples,
+	restore_samples_delete_copy(Query1)
+	.
+
+
+save_samples(Q) :-
+	forall(
+		transformed:retract(sampled(R, Sub, V)),
+		transformed:assertz(mem(Q, R, Sub, V))
+	).
+
+erase_samples :- transformed:retractall(sampled(_,_,_)).
+
+restore_samples_delete_copy(Q) :-
+	retract(transformed:mem(Q, R, Sub, V)),
+	assertz(transformed:sampled(R, Sub, V)),
+	fail.
+
+restore_samples_delete_copy(_Q).
+
+
 
 /**
  * montecarlo(+File:file, :Query:atom, -Probability:float) is det
@@ -63,9 +96,9 @@ resolve_sampler([standard], Sampler) :- Sampler = sample_goal, !.
 resolve_sampler([gibbs], Sampler) :- Sampler =.. [sample_goal_gibbs, 1], !.
 resolve_sampler([gibbs, BlockSize], Sampler) :- Sampler =.. [sample_goal_gibbs, BlockSize], !.
 
-take_samples_confidence(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes) :-
+take_samples_confidence(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes) :- !,
 	take_samples_confidence(Query, Threshold, BatchSize, 0, 0, SamplerOpts, Probability, Samples, Successes).
-take_samples_confidence(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, SamplerOpts, Probability, Samples, Successes) :-
+take_samples_confidence(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, SamplerOpts, Probability, Samples, Successes) :- !, 
 	% write('Sampling batch of size '), writeln(BatchSize),
 	sample_batch(Query, BatchSuccesses, BatchSize, SamplerOpts),
 	% write(Successes), writeln(' samples succeeded.'),
@@ -89,7 +122,8 @@ sample_batch(_Query, CurrSuccesses, Successes, 0, _) :-
 	Successes = CurrSuccesses,
 	!.
 sample_batch(Query, CurrSuccesses, Successes, Remaining, SamplerOpts) :-
-	(call(SamplerOpts, Query) ->
+	copy_term(Query, QueryC),
+	(call(SamplerOpts, QueryC) ->
 		IsValid = 1
 		;
 		IsValid = 0
@@ -114,7 +148,8 @@ take_samples_fixed(Query, SampleCount, CurrSamples, CurrSuccesses, SamplerOpts, 
 	).
 
 sample_round(Query, Success, SamplerOpts) :-
-	(call(SamplerOpts, Query) ->
+	copy_term(Query, QueryC),
+	(call(SamplerOpts, QueryC) ->
 		Success is 1
 		;
 		Success is 0
