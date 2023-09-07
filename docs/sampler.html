@@ -13,9 +13,9 @@
 <h1 class="file"><span style="float:right"></span>sampler.pl</h1>
 
 <dl>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="load_program/1"><b class="pred">load_program</b><var class="arglist">(:File:file)</var></a> is <b class="det">det</b></dt><dd class="defbody">Load the PLP under the given [<var>File</var>] source and transform it's content for future sampling.</dd>
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="load_program/1"><b class="pred">load_program</b><var class="arglist">(:File:file)</var></a> is <b class="det">det</b></dt><dd class="defbody">Load the PLP under the given <var>File</var> source and transform it's content for future sampling.</dd>
 <dt class="pubdef"><span style="float:right">&nbsp;</span><a name="unload_program/0"><b class="pred">unload_program</b></a> is <b class="det">det</b></dt><dd class="defbody">Cleanup environment state (usually after running a sampling process to completion).</dd>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="sample_goal/1"><b class="pred">sample_goal</b><var class="arglist">(:Goal:goal)</var></a> is <b class="det">det</b></dt><dd class="defbody">Assuming a suitable object program has already been transformed via [load_program],
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="sample_goal/1"><b class="pred">sample_goal</b><var class="arglist">(:Goal:atom)</var></a> is <b class="det">det</b></dt><dd class="defbody">Assuming a suitable object program has already been transformed via load_program,
 take a sample of the given [<var>Goal</var>].</dd>
 <dt class="pubdef"><span style="float:right">&nbsp;</span><a name="sample_goal_gibbs/2"><b class="pred">sample_goal_gibbs</b><var class="arglist">(+BlockSize:int, :Query:atom)</var></a> is <b class="det">det</b></dt><dd class="defbody">Assuming a suitable object program has already been transformed via load_program,
 take a sample of the given <var>Query</var> via Gibbs-Sampling as detailed in <a href="https://ceur-ws.org/Vol-2678/paper12.pdf.">https://ceur-ws.org/Vol-2678/paper12.pdf.</a></dd>

@@ -13,20 +13,27 @@
 <h1 class="file"><span style="float:right"></span>montecarlo.pl</h1>
 
 <dl>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo_no_confidence/5"><b class="pred">montecarlo_no_confidence</b><var class="arglist">(+File:file, :Query:atom, +SampleCount:int, +SamplingMethod:compound, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
-The predicate samples <var>Query</var> a number of times, as indicated by <var>SampleCount</var> and returns the Probability of the query being true.
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/4"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, -Probability:float, +Options:list)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and
+transformed into an equivalent standard prolog program. The predicate then samples <var>Query</var>
+either a fixed number of times or until a confidence value (as detailed in Riguzzi 2013, p. 6)
+reaches a configured threshold and returns the sampled <var>Probability</var> of the query being true.
+Non-ground queries are treated as existential queries.
 
 <p>
-The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</p></dd>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/4"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, +SamplingMethod:compound, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
-The predicate then samples <var>Query</var> a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches a certain
-threshold (0.02 by default) and returns the Probability of the query being true.
-The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</dd>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/5"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, +Threshold:float, +SamplingMethod:atom, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and then transformed into an equivalent standard prolog program.
-The predicate samples <var>Query</var> a number of times until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given <var>Threshold</var>.
-The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</dd>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/6"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, +Threshold:float, +BatchSize:int, +SamplingMethod:atom, -Propability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate samples <var>Query</var> in batch sizes of <var>BatchSize</var> until the confidence (as detailed in Riguzzi 2013, p. 6) reaches the given <var>Threshold</var>.
-The sampling method used by this predicate can be configured via <var>SamplingMethod</var> by either passing the constant <code>standard</code> or <code>(gibbs, BlockSize)</code>.</dd>
+<var>Options</var> is a list configuring the sampling process. Available options:</p>
+
+<dl class="termlist">
+<dt class="term"><b class="pred">sampler</b><var class="arglist">(+SamplerParams:list)</var></dt><dd>First parameter is either <code>standard</code> or <code>gibbs</code>. When using Gibbs sampling, a second
+parameter controls the block size of variables sampled together.</dd>
+<dt class="term"><b class="pred">confidence</b><var class="arglist">(+Confidence:float)</var></dt><dd>Configures the amount of samples taken by defining an expected target accuracy for the result.
+Set to a value other than a number to instead take a fixed amount of samples.</dd>
+<dt class="term"><b class="pred">count</b><var class="arglist">(+Count:int)</var></dt><dd>Amount of samples taken.
+(confidence unset -&gt; in total; confidence set -&gt; at once between calulating confidence values)</dd>
+<dt class="term"><b class="pred">silent</b><var class="arglist">(+Silent:int)</var></dt><dd>Suppress logging informational output (if value &gt; 0).</dd>
+</dl>
+
+</dd>
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/3"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, -Probability:float)</var></a> is <b class="det">det</b></dt><dd class="defbody">Alias of <a class="extmanual" href="http://www.swi-prolog.org/pldoc/man?predicate=montecarlo/3">montecarlo/3</a> with empty options.</dd>
 </dl>
 
 </body>

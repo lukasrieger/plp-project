@@ -17,7 +17,7 @@
 /**
  * load_program(:File:file) is det
  * 
- * Load the PLP under the given [File] source and transform it's content for future sampling. 
+ * Load the PLP under the given File source and transform it's content for future sampling. 
  */
 load_program(File) :-
 	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
@@ -96,7 +96,7 @@ assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionInde
 
 
 generate_clause_samp(Weights, DisjunctionIndex, Variables, Samp) :-
-	Samp = (samp(DisjunctionIndex, Variables, Val) :- (sampler:sample_head(Weights, DisjunctionIndex, Variables, Val)) )  .
+	Samp = (samp(DisjunctionIndex, Variables, Val) :- (sampler:sample_head(Weights, DisjunctionIndex, Variables, Val)) ).
 
 /*
 	Transform a list of terms extracted from an object program's clause
@@ -107,6 +107,8 @@ list_to_conjunction([Term], Term) :-
 list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
 	list_to_conjunction(Rest, Conjunction).
 
+
+% Helper method for alternative syntax.
 body2list(Head <--- Body, ListBody) :- is_list(Body), ListBody = (Head <--- Body).
 body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <--- [Body]). 
 
@@ -147,9 +149,9 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 	).
 
 /**
- * sample_goal(:Goal:goal) is det
+ * sample_goal(:Goal:atom) is det
  * 	
- * Assuming a suitable object program has already been transformed via [load_program],
+ * Assuming a suitable object program has already been transformed via load_program,
  * take a sample of the given [Goal]. 
  * 
  */
@@ -161,11 +163,10 @@ sample_goal(Goal) :-
 
 
 /**
- * sample_goal_gibbs(+BlockSize:int, :Query:atom) is det
+ * sample_goal_gibbs(+BlockSize:int,:Query:atom) is det
  * 
  * Assuming a suitable object program has already been transformed via load_program,
  * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
- * 
  */
 sample_goal_gibbs(BlockSize, Query) :-
 	remove_samples(BlockSize, Removed),
