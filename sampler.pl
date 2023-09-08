@@ -12,12 +12,10 @@
 :- dynamic(transformed:samp/3).
 :- dynamic(transformed:sampled/3).
 
-
-
 /**
  * load_program(:File:file) is det
- * 
- * Load the PLP under the given File source and transform it's content for future sampling. 
+ *
+ * Load the PLP under the given File source and transform it's content for future sampling.
  */
 load_program(File) :-
 	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
@@ -32,7 +30,7 @@ load_program(File) :-
  *	with one element of the disjunction as each new clause's head:
  *	0.5::reallycold; 0.5::freezing <--- [cold]
  *	↓
- *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]] 
+ *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]]
  */
 resolve_disjunct_heads((Head; RestHeads <--- Body), [Head <--- Body | Rest]) :-
 	resolve_disjunct_heads(RestHeads <--- Body, Rest),
@@ -110,11 +108,11 @@ list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
 
 % Helper method for alternative syntax.
 body2list(Head <--- Body, ListBody) :- is_list(Body), ListBody = (Head <--- Body).
-body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <--- [Body]). 
+body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <--- [Body]).
 
 /**
  * unload_program is det
- * 
+ *
  * Cleanup environment state (usually after running a sampling process to completion).
  */
 unload_program :-
@@ -126,7 +124,7 @@ unload_program :-
 /*
 	Generate a sample for a head, given its respective weights.
 */
-sample_head(_Weights, RequiredHead, Variables, HeadId) :- 
+sample_head(_Weights, RequiredHead, Variables, HeadId) :-
 	transformed:sampled(RequiredHead, Variables, HeadId), !.
 
 sample_head(Weights, RequiredHead, Variables, HeadId) :-
@@ -150,10 +148,10 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 
 /**
  * sample_goal(:Goal:atom) is det
- * 	
+ *
  * Assuming a suitable object program has already been transformed via load_program,
- * take a sample of the given [Goal]. 
- * 
+ * take a sample of the given Query.
+ *
  */
 sample_goal(Goal) :-
 	abolish_all_tables,
@@ -164,7 +162,7 @@ sample_goal(Goal) :-
 
 /**
  * sample_goal_gibbs(+BlockSize:int,:Query:atom) is det
- * 
+ *
  * Assuming a suitable object program has already been transformed via load_program,
  * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
  */

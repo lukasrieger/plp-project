@@ -5,6 +5,8 @@
 /**
  * montecarlo(+File:file, :Query:atom, -Probability:float, +Options:list) is det
  *
+ * Start a Monte Carlo sampling process.
+
  * The predicate assumes that `File` designates a PLP object program, which is consulted and
  * transformed into an equivalent standard prolog program. The predicate then samples `Query`
  * either a fixed number of times or until a confidence value (as detailed in Riguzzi 2013, p. 6)
@@ -47,12 +49,13 @@ montecarlo(File, Query, Probability, Options) :-
 		take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes)
 	),
 	(Silent > 0 -> !; writef('%w/%w samples succeeded.\n', [Successes, Samples])),
-	sampler:unload_program.
+	sampler:unload_program,
+	!.
 
 /**
  * montecarlo(+File:file, :Query:atom, -Probability:float) is det
  *
- * Alias of montecarlo/3 with empty options.
+ * Alias of `montecarlo:montecarlo/3` with empty options.
  */
 montecarlo(File, Query, Probability) :-
 	montecarlo(File, Query, Probability, []).
