@@ -13,11 +13,14 @@
 <h1 class="file"><span style="float:right"></span>montecarlo.pl</h1>
 
 <dl>
-<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/4"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, -Probability:float, +Options:list)</var></a> is <b class="det">det</b></dt><dd class="defbody">The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and
+<dt class="pubdef"><span style="float:right">&nbsp;</span><a name="montecarlo/4"><b class="pred">montecarlo</b><var class="arglist">(+File:file, :Query:atom, -Probability:float, +Options:list)</var></a> is <b class="det">det</b></dt><dd class="defbody">Start a Monte Carlo sampling process.
+
+<p>
+The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and
 transformed into an equivalent standard prolog program. The predicate then samples <var>Query</var>
 either a fixed number of times or until a confidence value (as detailed in Riguzzi 2013, p. 6)
 reaches a configured threshold and returns the sampled <var>Probability</var> of the query being true.
-Non-ground queries are treated as existential queries.
+Non-ground queries are treated as existential queries.</p>
 
 <p>
 <var>Options</var> is a list configuring the sampling process. Available options:</p>

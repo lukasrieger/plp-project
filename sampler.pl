@@ -14,7 +14,6 @@
 :- dynamic(transformed:samp/3).
 :- dynamic(transformed:sampled/3).
 
-
 /**
  * load_program(:File:file) is det
  *
@@ -164,7 +163,7 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
  * sample_goal(:Goal:atom) is det
  *
  * Assuming a suitable object program has already been transformed via load_program,
- * take a sample of the given [Goal].
+ * take a sample of the given Query.
  *
  */
 sample_goal(Goal) :-
