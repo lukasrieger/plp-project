@@ -38,14 +38,21 @@ montecarlo(File, Query, Probability, Options) :-
 	option(silent(Silent), Opts),
 	resolve_sampler(SamplerParams, SamplerOpts),
 	(Silent > 0 -> !; writef('Using sampler: %w\n', [SamplerOpts])),
-	sampler:load_program(File),
-	(number(Confidence) ->
-		(Silent > 0 -> !; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
-		take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability, Samples, Successes)
+	catch((
+		sampler:load_program(File),
+		(number(Confidence) ->
+			(Silent > 0 -> !; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
+			take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability, Samples, Successes)
 		;
-		(Silent > 0 -> !; writef('Taking %w samples.\n', [Count])),
-		take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes)
+			(Silent > 0 -> !; writef('Taking %w samples.\n', [Count])),
+			take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes)
+		)
 	),
+	Exception,
+	(
+		sampler:unload_program,
+		throw(Exception)
+	)),
 	(Silent > 0 -> !; writef('%w/%w samples succeeded.\n', [Successes, Samples])),
 	sampler:unload_program.
 
