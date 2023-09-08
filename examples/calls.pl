@@ -1,4 +1,3 @@
-:- style_check(-singleton).
 :- use_module(sampler).
 
 0.1::calls(X) <--- person(X).

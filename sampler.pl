@@ -15,14 +15,13 @@
 :- dynamic(transformed:sampled/3).
 
 
-
 /**
  * load_program(:File:file) is det
  *
  * Load the PLP under the given File source and transform it's content for future sampling.
  */
 load_program(File) :-
-	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
+	transformed:load_files(File), % using `transformed` as a namespace to scope the transformed program
 	findall(Head <--- Body, transformed:(Head <--- Body), Clauses, ClausesTail),
 	findall(Head <--- [], transformed:(Head <---), ClausesTail),
 	maplist(body2list, Clauses, Clauses2),
@@ -86,7 +85,7 @@ assert_disjunction([], _Weights, _DisjunctionIndex, _CurrHeadIndex).
 */
 assert_clause(_Weight::Head <--- [], Weights, DisjunctionIndex, HeadIndex) :-
 	Transformed = (Head :- (sampler:sample_head(Weights, DisjunctionIndex, [], NH), NH = HeadIndex)),
-	transformed:assertz(Transformed).
+	assert_transformed(Transformed).
 assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionIndex, HeadIndex) :-
 	Body = [BodyHead | BodyRest],
 	maplist(term_variables, Body, ConjunctionsVariables),
@@ -94,9 +93,14 @@ assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionInde
 	list_to_conjunction(Body, BodyConjunction),
 	Transformed = (Head :- (BodyConjunction, sampler:sample_head(Weights, DisjunctionIndex, Variables, NH), NH = HeadIndex)),
 	generate_clause_samp(Weights, DisjunctionIndex, Variables, Generated),
-	transformed:assertz(Transformed),
+	assert_transformed(Transformed),
 	transformed:assertz(Generated).
 
+assert_transformed(Predicate) :-
+	(Head :- _) = Predicate,
+	functor(Head, HeadName, HeadArity),
+	transformed:dynamic(HeadName/HeadArity), % make sure we are allowed to add to the predicate
+	transformed:assertz(Predicate).
 
 generate_clause_samp(Weights, DisjunctionIndex, Variables, Samp) :-
 	Samp = (samp(DisjunctionIndex, Variables, Val) :- (sampler:sample_head(Weights, DisjunctionIndex, Variables, Val)) ).
@@ -121,8 +125,13 @@ body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <---
  * Cleanup environment state (usually after running a sampling process to completion).
  */
 unload_program :-
-	findall(Predicate, current_predicate(transformed:Predicate), Predicates),
+	find_loaded_predicates(Predicates),
 	maplist(transformed:abolish, Predicates).
+
+find_loaded_predicates(Predicates) :-
+	findall(Predicate, current_predicate(transformed:Predicate), PredicatesAll),
+	exclude(is_lpad_operator, PredicatesAll, Predicates).
+is_lpad_operator((<---)/_).
 
 
 
