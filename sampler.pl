@@ -22,8 +22,7 @@
 load_program(File) :-
 	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
 	findall(Head <--- Body, transformed:(Head <--- Body), Clauses),
-	maplist(body2list, Clauses, Clauses2),
-	maplist(resolve_disjunct_heads, Clauses2, ClausesPerDisjunction), % returns nested list
+	maplist(resolve_disjunct_heads, Clauses, ClausesPerDisjunction), % returns nested list
 	maplist(get_disjunction_weights, ClausesPerDisjunction, WeightsPerDisjunction),
 	assert_disjunctions(ClausesPerDisjunction, WeightsPerDisjunction).
 

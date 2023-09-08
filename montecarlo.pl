@@ -29,22 +29,26 @@ montecarlo(File, Query, Probability, Options) :-
 		sampler(standard),
 		count(1000),
 		confidence(0.02),
-		silent(0)
+		silent(0),
+		non_existential(0)
 	],
 	merge_options(Options, Defaults, Opts),
 	option(sampler(SamplerParams), Opts),
 	option(count(Count), Opts),
 	option(confidence(Confidence), Opts),
 	option(silent(Silent), Opts),
+	option(non_existential(Mode), Opts),
+
 	resolve_sampler(SamplerParams, SamplerOpts),
 	(Silent > 0 -> !; writef('Using sampler: %w\n', [SamplerOpts])),
 	sampler:load_program(File),
+	!,
 	(number(Confidence) ->
 		(Silent > 0 -> !; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
 		take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability, Samples, Successes)
 		;
 		(Silent > 0 -> !; writef('Taking %w samples.\n', [Count])),
-		take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes)
+		take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes, Mode)
 	),
 	(Silent > 0 -> !; writef('%w/%w samples succeeded.\n', [Successes, Samples])),
 	sampler:unload_program.
@@ -65,6 +69,8 @@ resolve_sampler([gibbs, BlockSize], Sampler) :- Sampler =.. [sample_goal_gibbs, 
 
 take_samples_confidence(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes) :-
 	take_samples_confidence(Query, Threshold, BatchSize, 0, 0, SamplerOpts, Probability, Samples, Successes).
+
+
 take_samples_confidence(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, SamplerOpts, Probability, Samples, Successes) :-
 	% write('Sampling batch of size '), writeln(BatchSize),
 	sample_batch(Query, BatchSuccesses, BatchSize, SamplerOpts),
@@ -83,6 +89,10 @@ take_samples_confidence(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses,
 		take_samples_confidence(Query, Threshold, BatchSize, NewSamples, NewSuccesses, SamplerOpts, Probability, Samples, Successes)
 	).
 
+
+
+
+
 sample_batch(Query, Successes, BatchSize, SamplerOpts) :-
 	sample_batch(Query, 0, Successes, BatchSize, SamplerOpts).
 sample_batch(_Query, CurrSuccesses, Successes, 0, _) :-
@@ -99,8 +109,16 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining, SamplerOpts) :-
 	NewRemaining is Remaining - 1,
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SamplerOpts).
 
-take_samples_fixed(Query, SampleCount, SamplerOpts, Probability, Samples, Successes) :-
-	take_samples_fixed(Query, SampleCount, 0, 0, SamplerOpts, Probability, Samples, Successes).
+take_samples_fixed(Query, SampleCount, SamplerOpts, Probability, Samples, Successes, Mode) :-
+	( (Mode > 0, (\+ ground(Query)) ) ->
+		empty_assoc(SuccAssoc),
+		empty_assoc(ProbAssoc),
+		take_samples_fixed_assoc(Query, SampleCount, 0, SuccAssoc, 0, SamplerOpts, ProbAssoc, Samples, Successes, Prob),
+		assoc_to_list(Prob, Probability)
+		;
+		take_samples_fixed(Query, SampleCount, 0, 0, SamplerOpts, Probability, Samples, Successes)
+	).
+	
 take_samples_fixed(Query, SampleCount, CurrSamples, CurrSuccesses, SamplerOpts, Probability, Samples, Successes) :-
 	sample_round(Query, Success, SamplerOpts),
 	NewSamples is CurrSamples + 1,
@@ -121,3 +139,46 @@ sample_round(Query, Success, SamplerOpts) :-
 		;
 		Success is 0
 	).
+
+
+take_samples_fixed_assoc(Query, SampleCount, CurrSamples, CurrSuccessesAssoc, CurrSuccCount, SamplerOpts, ProbabilityAssoc, Samples, Successes, Probability) :- 
+	sample_round_assoc(Query, CurrSuccessesAssoc, SamplerOpts, Bindings, SuccessesNew),
+	NewSamples is CurrSamples + 1,
+	(ground(Bindings) -> 
+		get_assoc(Bindings, SuccessesNew, Succ),
+		NewBindingProb is Succ / NewSamples,
+		put_assoc(Bindings, ProbabilityAssoc, NewBindingProb, NewProbabilityAssoc),
+		NewSuccCount is CurrSuccCount + 1
+		;
+		NewProbabilityAssoc = ProbabilityAssoc,
+		NewSuccCount is CurrSuccCount
+	),
+	(NewSamples == SampleCount ->
+		Samples is NewSamples,
+		Successes = NewSuccCount,
+		Probability = NewProbabilityAssoc
+		;
+		take_samples_fixed_assoc(Query, SampleCount, NewSamples, SuccessesNew, NewSuccCount, SamplerOpts, NewProbabilityAssoc, Samples, Successes, Probability)
+	).
+
+sample_round_assoc(Query, SuccessesAssoc, SamplerOpts, Bindings, SuccessesNew) :-
+	copy_term(Query, QueryC),
+	term_variables(QueryC, Bindings),
+	(call(SamplerOpts, QueryC) ->
+		inc_count(Bindings, SuccessesAssoc, SuccessesNew)
+		;
+		SuccessesNew = SuccessesAssoc
+	).
+
+inc_count(Key, A0, A) :-
+	get_assoc(Key, A0, C0, A, C), !,
+	C is C0+1.
+inc_count(Key, A0, A) :-
+	put_assoc(Key, A0, 1, A).
+
+init_count_if_not_present(Key, A0, A) :-
+	get_assoc(Key, A0, C0, A, C), !,
+	C is C0.
+
+init_count_if_not_present(Key, A0, A) :-
+		put_assoc(Key, A0, 0, A).
