@@ -3,26 +3,28 @@
 	unload_program/0,
 	sample_goal/1,
 	sample_goal_gibbs/2,
+	op(1120, xf, <---),
 	op(1120, xfx, <---),
 	op(1080, xfy, ::)
 ]).
 
+:- dynamic(transformed:(<---)/1).
 :- dynamic(transformed:(<---)/2).
 :- dynamic((::)/2).
 :- dynamic(transformed:samp/3).
 :- dynamic(transformed:sampled/3).
 
-
-
 /**
  * load_program(:File:file) is det
- * 
- * Load the PLP under the given File source and transform it's content for future sampling. 
+ *
+ * Load the PLP under the given File source and transform it's content for future sampling.
  */
 load_program(File) :-
-	transformed:consult(File), % using `transformed` as a namespace to scope the transformed program
-	findall(Head <--- Body, transformed:(Head <--- Body), Clauses),
-	maplist(resolve_disjunct_heads, Clauses, ClausesPerDisjunction), % returns nested list
+	transformed:load_files(File), % using `transformed` as a namespace to scope the transformed program
+	findall(Head <--- Body, transformed:(Head <--- Body), Clauses, ClausesTail),
+	findall(Head <--- [], transformed:(Head <---), ClausesTail),
+	maplist(body2list, Clauses, Clauses2),
+	maplist(resolve_disjunct_heads, Clauses2, ClausesPerDisjunction), % returns nested list
 	maplist(get_disjunction_weights, ClausesPerDisjunction, WeightsPerDisjunction),
 	assert_disjunctions(ClausesPerDisjunction, WeightsPerDisjunction).
 
@@ -31,7 +33,7 @@ load_program(File) :-
  *	with one element of the disjunction as each new clause's head:
  *	0.5::reallycold; 0.5::freezing <--- [cold]
  *	↓
- *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]] 
+ *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]]
  */
 resolve_disjunct_heads((Head; RestHeads <--- Body), [Head <--- Body | Rest]) :-
 	resolve_disjunct_heads(RestHeads <--- Body, Rest),
@@ -82,7 +84,7 @@ assert_disjunction([], _Weights, _DisjunctionIndex, _CurrHeadIndex).
 */
 assert_clause(_Weight::Head <--- [], Weights, DisjunctionIndex, HeadIndex) :-
 	Transformed = (Head :- (sampler:sample_head(Weights, DisjunctionIndex, [], NH), NH = HeadIndex)),
-	transformed:assertz(Transformed).
+	assert_transformed(Transformed).
 assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionIndex, HeadIndex) :-
 	Body = [BodyHead | BodyRest],
 	maplist(term_variables, Body, ConjunctionsVariables),
@@ -90,9 +92,14 @@ assert_clause(_Weight::Head <--- [BodyHead | BodyRest], Weights, DisjunctionInde
 	list_to_conjunction(Body, BodyConjunction),
 	Transformed = (Head :- (BodyConjunction, sampler:sample_head(Weights, DisjunctionIndex, Variables, NH), NH = HeadIndex)),
 	generate_clause_samp(Weights, DisjunctionIndex, Variables, Generated),
-	transformed:assertz(Transformed),
+	assert_transformed(Transformed),
 	transformed:assertz(Generated).
 
+assert_transformed(Predicate) :-
+	(Head :- _) = Predicate,
+	functor(Head, HeadName, HeadArity),
+	transformed:dynamic(HeadName/HeadArity), % make sure we are allowed to add to the predicate
+	transformed:assertz(Predicate).
 
 generate_clause_samp(Weights, DisjunctionIndex, Variables, Samp) :-
 	Samp = (samp(DisjunctionIndex, Variables, Val) :- (sampler:sample_head(Weights, DisjunctionIndex, Variables, Val)) ).
@@ -109,23 +116,28 @@ list_to_conjunction([Term | Rest], ','(Term, Conjunction)) :-
 
 % Helper method for alternative syntax.
 body2list(Head <--- Body, ListBody) :- is_list(Body), ListBody = (Head <--- Body).
-body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <--- [Body]). 
+body2list(Head <--- Body, ListBody) :- (\+ is_list(Body)), ListBody = (Head <--- [Body]).
 
 /**
  * unload_program is det
- * 
+ *
  * Cleanup environment state (usually after running a sampling process to completion).
  */
 unload_program :-
-	findall(Predicate, current_predicate(transformed:Predicate), Predicates),
+	find_loaded_predicates(Predicates),
 	maplist(transformed:abolish, Predicates).
+
+find_loaded_predicates(Predicates) :-
+	findall(Predicate, current_predicate(transformed:Predicate), PredicatesAll),
+	exclude(is_lpad_operator, PredicatesAll, Predicates).
+is_lpad_operator((<---)/_).
 
 
 
 /*
 	Generate a sample for a head, given its respective weights.
 */
-sample_head(_Weights, RequiredHead, Variables, HeadId) :- 
+sample_head(_Weights, RequiredHead, Variables, HeadId) :-
 	transformed:sampled(RequiredHead, Variables, HeadId), !.
 
 sample_head(Weights, RequiredHead, Variables, HeadId) :-
@@ -149,10 +161,10 @@ sample([HeadProb | Tail], Index, Prev, Prob, HeadId) :-
 
 /**
  * sample_goal(:Goal:atom) is det
- * 	
+ *
  * Assuming a suitable object program has already been transformed via load_program,
- * take a sample of the given [Goal]. 
- * 
+ * take a sample of the given Query.
+ *
  */
 sample_goal(Goal) :-
 	abolish_all_tables,
@@ -163,7 +175,7 @@ sample_goal(Goal) :-
 
 /**
  * sample_goal_gibbs(+BlockSize:int,:Query:atom) is det
- * 
+ *
  * Assuming a suitable object program has already been transformed via load_program,
  * take a sample of the given Query via Gibbs-Sampling as detailed in https://ceur-ws.org/Vol-2678/paper12.pdf.
  */

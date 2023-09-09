@@ -20,19 +20,4 @@ Further documentation: https://lukasrieger.github.io/plp-project/
 and the second denotes the query to be sampled. After successful sampling, `P` will contain the sampled probability
 of `Query` being true under the given input.
 
-### Available entry points
-
-There are multiple ways to start a sampling process, depending on how much customization of the sampling process is required. 
-
-The `montecarlo` module exposes 3 clauses for this purpose:
-
-- `montecarlo/3` with `montecarlo(Program, Query, Probability, SamplingMethod)`
-- `montecarlo/4` with `montecarlo(Program, Query, Threshold, Probability, SamplingMethod)`
-- `montecarlo/5` with `montecarlo(Program, Query, Threshold, BatchSize, Probability, SamplingMethod)`
-
-If not specified, Threshold defaults to `0.02` and BatchSize defaults to `500`.
-
-The sampling method can be configured via `SamplingMethod`:
-- `(gibbs, BlockSize)` -> Perform Gibbs-Sampling.
-- `standard` -> Perform standard sampling with full sample resets between individual samples.
-
+> **Refer to [the PlDoc](https://lukasrieger.github.io/plp-project/) to customize sampling settings.**
