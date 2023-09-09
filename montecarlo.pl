@@ -30,7 +30,7 @@ montecarlo(File, Query, Probability, Options) :-
 		count(1000),
 		confidence(0.02),
 		silent(0),
-		non_existential(0)
+		non_existential(false)
 	],
 	merge_options(Options, Defaults, Opts),
 	option(sampler(SamplerParams), Opts),
@@ -110,11 +110,8 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining, SamplerOpts) :-
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SamplerOpts).
 
 take_samples_fixed(Query, SampleCount, SamplerOpts, Probability, Samples, Successes, Mode) :-
-	( (Mode > 0, (\+ ground(Query)) ) ->
-		empty_assoc(SuccAssoc),
-		empty_assoc(ProbAssoc),
-		take_samples_fixed_assoc(Query, SampleCount, 0, SuccAssoc, 0, SamplerOpts, ProbAssoc, Samples, Successes, Prob),
-		assoc_to_list(Prob, Probability)
+	( (Mode, (\+ ground(Query)) ) ->
+		take_samples_non_ground(Query, SampleCount, SamplerOpts, Probability, Samples, Successes)
 		;
 		take_samples_fixed(Query, SampleCount, 0, 0, SamplerOpts, Probability, Samples, Successes)
 	).
@@ -141,44 +138,42 @@ sample_round(Query, Success, SamplerOpts) :-
 	).
 
 
-take_samples_fixed_assoc(Query, SampleCount, CurrSamples, CurrSuccessesAssoc, CurrSuccCount, SamplerOpts, ProbabilityAssoc, Samples, Successes, Probability) :- 
-	sample_round_assoc(Query, CurrSuccessesAssoc, SamplerOpts, Bindings, SuccessesNew),
-	NewSamples is CurrSamples + 1,
-	(ground(Bindings) -> 
-		get_assoc(Bindings, SuccessesNew, Succ),
-		NewBindingProb is Succ / NewSamples,
-		put_assoc(Bindings, ProbabilityAssoc, NewBindingProb, NewProbabilityAssoc),
-		NewSuccCount is CurrSuccCount + 1
-		;
-		NewProbabilityAssoc = ProbabilityAssoc,
-		NewSuccCount is CurrSuccCount
-	),
-	(NewSamples == SampleCount ->
-		Samples is NewSamples,
-		Successes = NewSuccCount,
-		Probability = NewProbabilityAssoc
-		;
-		take_samples_fixed_assoc(Query, SampleCount, NewSamples, SuccessesNew, NewSuccCount, SamplerOpts, NewProbabilityAssoc, Samples, Successes, Probability)
-	).
-
-sample_round_assoc(Query, SuccessesAssoc, SamplerOpts, Bindings, SuccessesNew) :-
+collect_groundings(Query, SamplerOpts, Groundings, NewGroundings) :-
 	copy_term(Query, QueryC),
-	term_variables(QueryC, Bindings),
+	term_variables(QueryC, FreeVariables),
 	(call(SamplerOpts, QueryC) ->
-		inc_count(Bindings, SuccessesAssoc, SuccessesNew)
+		list_to_set([FreeVariables | Groundings], NewGroundings)
 		;
-		SuccessesNew = SuccessesAssoc
+		NewGroundings = Groundings
 	).
 
-inc_count(Key, A0, A) :-
-	get_assoc(Key, A0, C0, A, C), !,
-	C is C0+1.
-inc_count(Key, A0, A) :-
-	put_assoc(Key, A0, 1, A).
+collect_groundings_fixed(_Query, _SamplerOpts, 0, GroundingsInit, Groundings) :- Groundings = GroundingsInit.
 
-init_count_if_not_present(Key, A0, A) :-
-	get_assoc(Key, A0, C0, A, C), !,
-	C is C0.
+collect_groundings_fixed(Query, SamplerOpts, SampleCount, GroundingsInit, Groundings) :-
+	collect_groundings(Query, SamplerOpts, GroundingsInit, NewGroundings),
+	RemainingSamples is SampleCount - 1,
+	collect_groundings_fixed(Query, SamplerOpts, RemainingSamples, NewGroundings, Groundings).
 
-init_count_if_not_present(Key, A0, A) :-
-		put_assoc(Key, A0, 0, A).
+take_samples_non_ground(Query, SampleCount, SamplerOpts, Probability, Samples, Successes) :-
+	collect_groundings_fixed(Query, SamplerOpts, SampleCount, [], Groundings),
+	TakeSamplesPred =.. [take_sample_for_grounding, Query, SampleCount, SamplerOpts],
+	maplist(TakeSamplesPred, Groundings, Probability),
+	length(Groundings, GroundingCount),
+	Samples is SampleCount * GroundingCount,
+	sumSuccesses(Probability, Successes).
+
+take_sample_for_grounding(Query, SampleCount, SamplerOpts, Grounding, Grounding:Probability:SuccessesG) :-
+	term_variables(Query, Vars),
+	NewQuery = (Query, Vars = Grounding),
+	take_samples_fixed(NewQuery, SampleCount, 0, 0, SamplerOpts, Probability, _Samples, SuccessesG).
+
+
+sumSuccesses([], Successes, Result) :- Result is Successes.
+sumSuccesses([_:_:SuccessesG | Rest], Successes, Result) :-
+	NewSuccesses = SuccessesG + Successes,
+	sumSuccesses(Rest, NewSuccesses, Result).
+sumSuccesses(ProbSuccesses, Successes) :-
+	sumSuccesses(ProbSuccesses, 0, Successes).	
+
+
+	
