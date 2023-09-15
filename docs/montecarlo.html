@@ -19,8 +19,11 @@
 The predicate assumes that <var>File</var> designates a PLP object program, which is consulted and
 transformed into an equivalent standard prolog program. The predicate then samples <var>Query</var>
 either a fixed number of times or until a confidence value (as detailed in Riguzzi 2013, p. 6)
-reaches a configured threshold and returns the sampled <var>Probability</var> of the query being true.
-Non-ground queries are treated as existential queries, unless the non_existential option flag has explicitly been set to true.</p>
+reaches a configured threshold and returns the sampled <var>Probability</var> of the query being true.</p>
+
+<p>
+Non-ground queries are treated as existential queries, unless the per_grounding option flag has
+explicitly been set to true (value != 0).</p>
 
 <p>
 <var>Options</var> is a list configuring the sampling process. Available options:</p>
@@ -29,11 +32,12 @@ Non-ground queries are treated as existential queries, unless the non_existentia
 <dt class="term"><b class="pred">sampler</b><var class="arglist">(+SamplerParams:list)</var></dt><dd>First parameter is either <code>standard</code> or <code>gibbs</code>. When using Gibbs sampling, a second
 parameter controls the block size of variables sampled together.</dd>
 <dt class="term"><b class="pred">confidence</b><var class="arglist">(+Confidence:float)</var></dt><dd>Configures the amount of samples taken by defining an expected target accuracy for the result.
-Set to a value other than a number to instead take a fixed amount of samples.</dd>
+Set to a value other than a positive float to instead take a fixed amount of samples.</dd>
 <dt class="term"><b class="pred">count</b><var class="arglist">(+Count:int)</var></dt><dd>Amount of samples taken.
 (confidence unset -&gt; in total; confidence set -&gt; at once between calulating confidence values)</dd>
-<dt class="term"><b class="pred">silent</b><var class="arglist">(+Silent:int)</var></dt><dd>Suppress logging informational output (if value &gt; 0).</dd>
-<dt class="term"><b class="pred">non_existential</b><var class="arglist">(+NonExt:boolean)</var></dt><dd>If the given query is non-ground, compute the probabilities of the individual groundings.</dd>
+<dt class="term"><b class="pred">per_grounding</b><var class="arglist">(+PerGrounding:int)</var></dt><dd>When providing non-ground queries, compute the probabilities per individual grounding,
+instead of treating it as an existential query (if value != 0).</dd>
+<dt class="term"><b class="pred">silent</b><var class="arglist">(+Silent:int)</var></dt><dd>Suppress logging of informational output (if value != 0).</dd>
 </dl>
 
 </dd>

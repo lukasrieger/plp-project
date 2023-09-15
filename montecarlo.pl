@@ -11,7 +11,9 @@
  * transformed into an equivalent standard prolog program. The predicate then samples `Query`
  * either a fixed number of times or until a confidence value (as detailed in Riguzzi 2013, p. 6)
  * reaches a configured threshold and returns the sampled `Probability` of the query being true.
- * Non-ground queries are treated as existential queries, unless the non_existential option flag has explicitly been set to true.
+
+ * Non-ground queries are treated as existential queries, unless the per_grounding option flag has
+ * explicitly been set to true (value != 0).
  *
  * `Options` is a list configuring the sampling process. Available options:
  * * sampler(+SamplerParams:list)
@@ -19,14 +21,15 @@
  *   parameter controls the block size of variables sampled together.
  * * confidence(+Confidence:float)
  *   Configures the amount of samples taken by defining an expected target accuracy for the result.
- *   Set to a value other than a number to instead take a fixed amount of samples.
+ *   Set to a value other than a positive float to instead take a fixed amount of samples.
  * * count(+Count:int)
  *   Amount of samples taken.
  *   (confidence unset -> in total; confidence set -> at once between calulating confidence values)
+ * * per_grounding(+PerGrounding:int)
+ *   When providing non-ground queries, compute the probabilities per individual grounding,
+ *   instead of treating it as an existential query (if value != 0).
  * * silent(+Silent:int)
- *   Suppress logging informational output (if value > 0).
- * * non_existential(+NonExt:boolean)
- * 	 If the given query is non-ground, compute the probabilities of the individual groundings.
+ *   Suppress logging of informational output (if value != 0).
  */
 montecarlo(File, Query, Probability, Options) :-
 	Defaults = [
@@ -34,25 +37,37 @@ montecarlo(File, Query, Probability, Options) :-
 		count(1000),
 		confidence(0.02),
 		silent(0),
-		non_existential(false)
+		per_grounding(0)
 	],
 	merge_options(Options, Defaults, Opts),
 	option(sampler(SamplerParams), Opts),
 	option(count(Count), Opts),
 	option(confidence(Confidence), Opts),
+	option(per_grounding(PerGrounding), Opts),
 	option(silent(Silent), Opts),
-	option(non_existential(Mode), Opts),
 
 	resolve_sampler(SamplerParams, SamplerOpts),
-	(Silent > 0 -> !; writef('Using sampler: %w\n', [SamplerOpts])),
+	(Silent =\= 0 -> !; writef('Using sampler: %w\n', [SamplerOpts])),
 	catch((
 		sampler:load_program(File),
-		(number(Confidence) ->
-			(Silent > 0 -> !; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
-			take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability, Samples, Successes, Mode)
+		((PerGrounding =\= 0, (\+ ground(Query))) ->
+			((number(Confidence), Confidence > 0) ->
+				(Silent =\= 0 -> !; writef('Taking batches of %w samples per grounding until confidence < %w.\n', [Count, Confidence])),
+				take_samples_confidence_per_ground(Query, Confidence, Count, SamplerOpts, Results, Samples, Successes)
+			;
+				(Silent =\= 0 -> !; writef('Taking %w samples per grounding.\n', [Count])),
+				take_samples_fixed_per_ground(Query, Count, SamplerOpts, Results, Samples, Successes)
+			),
+			maplist(result_to_grounding_prob_pair, Results, Probability),
+			(Silent =\= 0 -> !; maplist(log_grounding, Results))
 		;
-			(Silent > 0 -> !; writef('Taking %w samples.\n', [Count])),
-			take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes, Mode)
+			((number(Confidence), Confidence > 0) ->
+				(Silent =\= 0 -> !; writef('Taking batches of %w samples until confidence < %w.\n', [Count, Confidence])),
+				take_samples_confidence(Query, Confidence, Count, SamplerOpts, Probability, Samples, Successes)
+			;
+				(Silent =\= 0 -> !; writef('Taking %w samples.\n', [Count])),
+				take_samples_fixed(Query, Count, SamplerOpts, Probability, Samples, Successes)
+			)
 		)
 	),
 	Exception,
@@ -60,7 +75,7 @@ montecarlo(File, Query, Probability, Options) :-
 		sampler:unload_program,
 		throw(Exception)
 	)),
-	(Silent > 0 -> !; writef('%w/%w samples succeeded.\n', [Successes, Samples])),
+	(Silent =\= 0 -> !; writef('%w/%w total samples succeeded.\n', [Successes, Samples])),
 	sampler:unload_program,
 	!.
 
@@ -78,21 +93,12 @@ resolve_sampler([standard], Sampler) :- Sampler = sample_goal, !.
 resolve_sampler([gibbs], Sampler) :- Sampler =.. [sample_goal_gibbs, 1], !.
 resolve_sampler([gibbs, BlockSize], Sampler) :- Sampler =.. [sample_goal_gibbs, BlockSize], !.
 
-take_samples_confidence(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes, Mode) :-
-	( (Mode, (\+ ground(Query)) ) ->
-		take_samples_confidence_non_ground(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes)
-		;
-		take_samples_confidence(Query, Threshold, BatchSize, 0, 0, SamplerOpts, Probability, Samples, Successes)
-	).
-	
+result_to_grounding_prob_pair(Grounding:Probability:_:_, Grounding-Probability).
+log_grounding(Grounding:_Probability:Successes:Samples) :-
+	writef('%w: %w/%w samples succeeded.\n', [Grounding, Successes, Samples]).
 
-take_samples_confidence_non_ground(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes) :-
-	collect_groundings_fixed(Query, SamplerOpts, 10000, [], Groundings),
-	TakeSamplesPred =.. [take_sample_for_grounding, Query, Threshold, BatchSize, SamplerOpts],
-	maplist(TakeSamplesPred, Groundings, Probability),
-	sumSamples(Probability, Samples),
-	sumSuccesses(Probability, Successes).
-
+take_samples_confidence(Query, Threshold, BatchSize, SamplerOpts, Probability, Samples, Successes) :-
+	take_samples_confidence(Query, Threshold, BatchSize, 0, 0, SamplerOpts, Probability, Samples, Successes).
 
 take_samples_confidence(Query, Threshold, BatchSize, CurrSamples, CurrSuccesses, SamplerOpts, Probability, Samples, Successes) :-
 	% write('Sampling batch of size '), writeln(BatchSize),
@@ -128,13 +134,18 @@ sample_batch(Query, CurrSuccesses, Successes, Remaining, SamplerOpts) :-
 	NewRemaining is Remaining - 1,
 	sample_batch(Query, NewSuccesses, Successes, NewRemaining, SamplerOpts).
 
-take_samples_fixed(Query, SampleCount, SamplerOpts, Probability, Samples, Successes, Mode) :-
-	( (Mode, (\+ ground(Query)) ) ->
-		take_samples_non_ground(Query, SampleCount, SamplerOpts, Probability, Samples, Successes)
-		;
-		take_samples_fixed(Query, SampleCount, 0, 0, SamplerOpts, Probability, Samples, Successes)
-	).
-	
+take_samples_confidence_per_ground(Query, Threshold, BatchSize, SamplerOpts, Results, Samples, Successes) :-
+	collect_groundings_fixed(Query, SamplerOpts, 10000, [], Groundings),
+	TakeSamplesPred =.. [take_sample_for_grounding, Query, Threshold, BatchSize, SamplerOpts],
+	maplist(TakeSamplesPred, Groundings, Results),
+	sumSamples(Results, Samples),
+	sumSuccesses(Results, Successes).
+
+
+
+take_samples_fixed(Query, SampleCount, SamplerOpts, Probability, Samples, Successes) :-
+	take_samples_fixed(Query, SampleCount, 0, 0, SamplerOpts, Probability, Samples, Successes).
+
 take_samples_fixed(Query, SampleCount, CurrSamples, CurrSuccesses, SamplerOpts, Probability, Samples, Successes) :-
 	sample_round(Query, Success, SamplerOpts),
 	NewSamples is CurrSamples + 1,
@@ -152,9 +163,18 @@ sample_round(Query, Success, SamplerOpts) :-
 	copy_term(Query, QueryC),
 	(call(SamplerOpts, QueryC) ->
 		Success is 1
-		;
+	;
 		Success is 0
 	).
+
+take_samples_fixed_per_ground(Query, SampleCount, SamplerOpts, Results, Samples, Successes) :-
+	collect_groundings_fixed(Query, SamplerOpts, SampleCount, [], Groundings),
+	TakeSamplesPred =.. [take_sample_for_grounding, Query, SampleCount, SamplerOpts],
+	maplist(TakeSamplesPred, Groundings, Results),
+	length(Groundings, GroundingCount),
+	Samples is SampleCount * GroundingCount,
+	sumSuccesses(Results, Successes).
+
 
 
 collect_groundings(Query, SamplerOpts, Groundings, NewGroundings) :-
@@ -162,7 +182,7 @@ collect_groundings(Query, SamplerOpts, Groundings, NewGroundings) :-
 	term_variables(QueryC, FreeVariables),
 	(call(SamplerOpts, QueryC) ->
 		list_to_set([FreeVariables | Groundings], NewGroundings)
-		;
+	;
 		NewGroundings = Groundings
 	).
 
@@ -172,14 +192,6 @@ collect_groundings_fixed(Query, SamplerOpts, SampleCount, GroundingsInit, Ground
 	collect_groundings(Query, SamplerOpts, GroundingsInit, NewGroundings),
 	RemainingSamples is SampleCount - 1,
 	collect_groundings_fixed(Query, SamplerOpts, RemainingSamples, NewGroundings, Groundings).
-
-take_samples_non_ground(Query, SampleCount, SamplerOpts, Probability, Samples, Successes) :-
-	collect_groundings_fixed(Query, SamplerOpts, SampleCount, [], Groundings),
-	TakeSamplesPred =.. [take_sample_for_grounding, Query, SampleCount, SamplerOpts],
-	maplist(TakeSamplesPred, Groundings, Probability),
-	length(Groundings, GroundingCount),
-	Samples is SampleCount * GroundingCount,
-	sumSuccesses(Probability, Successes).
 
 take_sample_for_grounding(Query, SampleCount, SamplerOpts, Grounding, Grounding:Probability:SuccessesG:Samples) :-
 	term_variables(Query, Vars),
@@ -191,19 +203,16 @@ take_sample_for_grounding(Query, Threshold, BatchSize, SamplerOpts, Grounding, G
 	NewQuery = (Query, Vars = Grounding),
 	take_samples_confidence(NewQuery, Threshold, BatchSize, 0, 0, SamplerOpts, Probability, Samples, SuccessesG).
 
-sumSuccesses([], Successes, Result) :- Result is Successes.
-sumSuccesses([_:_:SuccessesG:_ | Rest], Successes, Result) :-
+sumSuccesses([], Successes, Sum) :- Sum is Successes.
+sumSuccesses([_:_:SuccessesG:_ | Rest], Successes, Sum) :-
 	NewSuccesses = SuccessesG + Successes,
-	sumSuccesses(Rest, NewSuccesses, Result).
+	sumSuccesses(Rest, NewSuccesses, Sum).
 sumSuccesses(ProbSuccesses, Successes) :-
-	sumSuccesses(ProbSuccesses, 0, Successes).	
+	sumSuccesses(ProbSuccesses, 0, Successes).
 
-sumSamples([], Samples, Result) :- Result is Samples.
-sumSamples([_:_:_:SamplesG | Rest], Samples, Result) :-
+sumSamples([], Samples, Sum) :- Sum is Samples.
+sumSamples([_:_:_:SamplesG | Rest], Samples, Sum) :-
 	NewSamples = SamplesG + Samples,
-	sumSamples(Rest, NewSamples, Result).
+	sumSamples(Rest, NewSamples, Sum).
 sumSamples(ProbSamples, Samples) :-
-	sumSamples(ProbSamples, 0, Samples).	
-
-
-	
+	sumSamples(ProbSamples, 0, Samples).
