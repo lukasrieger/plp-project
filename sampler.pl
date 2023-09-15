@@ -31,13 +31,13 @@ load_program(File) :-
 	maplist(get_disjunction_weights, ClausesPerDisjunction, WeightsPerDisjunction),
 	assert_disjunctions(ClausesPerDisjunction, WeightsPerDisjunction).
 
-/**
- * Parse disjunctions in a clause's head by transforming it into a list of clauses instead,
- *	with one element of the disjunction as each new clause's head:
- *	0.5::reallycold; 0.5::freezing <--- [cold]
- *	↓
- *	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]]
- */
+/*
+	Parse disjunctions in a clause's head by transforming it into a list of clauses instead,
+	with one element of the disjunction as each new clause's head:
+	0.5::reallycold; 0.5::freezing <--- [cold]
+	↓
+	[0.5::reallycold <--- [cold], 0.5::freezing <--- [cold]]
+*/
 resolve_disjunct_heads((Head; RestHeads <--- Body), [Head <--- Body | Rest]) :-
 	resolve_disjunct_heads(RestHeads <--- Body, Rest),
 	!.
