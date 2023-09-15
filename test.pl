@@ -54,7 +54,14 @@ mc_test_single(File, Query, Options, UserOptions) :-
 	merge_options(UserOptions, [silent(1)], UserOpts),
 	merge_options(Options, UserOpts, Opts),
 	call_time(montecarlo(File, Query, ResultP, Opts), Benchmark),
-	format(
-		'  Result: ~4f  |  Inf.: ~t~D~36|  |  CPU: ~t~1fms~18+  |  ~w\n',
-		[ResultP, Benchmark.get(inferences), Benchmark.get(cpu) * 1000, Options]
+	((option(per_grounding(PerGrounding), Opts), PerGrounding =\= 0) ->
+		format(
+			'  Result: ~w  |  Inf.: ~t~D~36|  |  CPU: ~t~1fms~18+  |  ~w\n',
+			[ResultP, Benchmark.get(inferences), Benchmark.get(cpu) * 1000, Options]
+		)
+	;
+		format(
+			'  Result: ~4f  |  Inf.: ~t~D~36|  |  CPU: ~t~1fms~18+  |  ~w\n',
+			[ResultP, Benchmark.get(inferences), Benchmark.get(cpu) * 1000, Options]
+		)
 	).
